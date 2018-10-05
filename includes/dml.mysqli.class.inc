@@ -1,0 +1,2287 @@
+<?php
+// *****************************************************************************
+// Copyright 2003-2005 by A J Marston <http://www.tonymarston.net>
+// Copyright 2006-2018 by Radicore Software Limited <http://www.radicore.org>
+// *****************************************************************************
+
+class mysql
+// this version is for MySQL (using the 'improved' functions)
+{
+    // connection settings
+    var $dbhost;
+    var $dbname;                        // database name
+    var $dbusername;
+    var $dbuserpass;
+    var $dbport;
+    var $dbsocket;
+    var $ssl_key;
+    var $ssl_cert;
+    var $ssl_ca;
+    var $ssl_capath;
+    var $ssl_cipher;
+
+    // server settings
+    var $client_info;                   // client info (version number)
+    var $host_info;                     // host info (connection)
+    var $server_info;                   // server info (version number)
+    var $charset;                       // character set
+    var $character_set_client;
+    var $character_set_connection;
+    var $character_set_database;
+    var $character_set_server;
+
+    var $allow_db_function = false;     // allow a field's value in a database insert/update to contain a function name
+    var $audit_logging;                 // yes/no switch
+    var $errors;                        // array of errors
+    var $error_string;                  //
+    var $fieldspec = array();           // field specifications (see class constructor)
+    var $lastpage;                      // last available page number in current query
+
+    // by default if the database cannot acquire a lock it will abort, but this behaviour can be changed
+    var $lock_wait_count=0;             // number of times lock wait failed
+    var $no_abort_on_lock_wait=false;   // do not abort if cannot apply lock, allow me to try again
+
+    var $no_duplicate_error;            // if TRUE do not create an error when inserting a duplicate
+    var $numrows;                       // number of rows retrieved
+    var $pageno;                        // requested page number
+    var $primary_key = array();         // array of primary key names
+    var $retry_on_duplicate_key;        // field name to be incremented when insert fails
+    var $rows_per_page;                 // page size for multi-row forms
+    var $row_locks;                     // SH=shared, EX=exclusive
+    var $row_locks_supp;                // supplemental lock type
+    var $skip_offset;                   // force diferent offset after rows have been skipped
+    var $table_locks;                   // array of tables to be locked
+    var $transaction_level;             // transaction level
+    var $unbuffered_query = false;      // used in getData_serial()
+    var $unique_keys = array();         // array of candidate keys
+    var $update_on_duplicate_key;       // switch to 'update' if insert fails
+    var $warnings = array();            // array of warnings
+
+    // the following are used to construct an SQL query
+    var $sql_select;
+    var $sql_from;
+    var $sql_groupby;
+    var $sql_having;
+    var $sql_orderby;
+    var $sql_orderby_seq;               // 'asc' or 'desc'
+    var $sql_where_append;              // string which is too complex for where2array() function
+    var $sql_union;
+    var $query;                         // completed DML statement
+
+    // these are used in Common Table Expressions (CTE)
+    var $sql_CTE_name;                  // CTE name
+    var $sql_CTE_select;                // CTE 'select columns'
+    var $sql_CTE_anchor;                // CTE anchor expression
+    var $sql_CTE_recursive;             // CTE recursive expression
+
+    var $dbconnect;                     // database connection resource
+
+    // ****************************************************************************
+    // class constructor
+    // ****************************************************************************
+    function __construct ($args=null)
+    {
+        if (is_string($args)) {
+            $dbname           = $args;
+        } else {
+            $dbname           =& $args['dbname'];
+            $this->dbhost     =& $args['dbhost'];
+            $this->dbusername =& $args['dbusername'];
+            $this->dbuserpass =& $args['dbuserpass'];
+            $this->dbport     =& $args['dbport'];
+            $this->dbsocket   =& $args['dbsocket'];
+            $this->ssl_key    =& $args['ssl_key'];
+            $this->ssl_cert   =& $args['ssl_cert'];
+            $this->ssl_ca     =& $args['ssl_ca'];
+            $this->ssl_capath =& $args['ssl_capath'];
+            $this->ssl_cipher =& $args['ssl_cipher'];
+        } // if
+
+        if (!empty($dbname)) {
+            $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+            $result = $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+        } else {
+            $result = TRUE;
+        } // if
+
+        if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        	// do nothing
+        } else {
+            if (!class_exists('audit_tbl')) {
+        	    // obtain definition of the audit_tbl class
+        		require_once 'classes/audit_tbl.class.inc';
+        	} // if
+        } // if
+
+        return $result;
+
+    } // __construct
+
+    // ****************************************************************************
+    function adjustHaving ($select_str, $from_str, $where_str, $group_str, $having_str, $sort_str, $union)
+    // make 'SELECT ... FROM ... WHERE ...' into a subquery so that the HAVING clause can
+    // become the WHERE clause of the outer query.
+    // This is so that when both parts of a UNION have a HAVING clause it can be turned into
+    // the WHERE clause of the outer query.
+    {
+        // put current query into a subqery
+        $subquery   = "    SELECT $select_str\n    FROM $from_str $where_str $group_str";
+
+        if (!empty($union)) {
+            $subquery .= "\nUNION ALL\n$union";
+            $union     = '';
+        } // if
+
+        $select_str = '*';
+        $from_str   = "(\n$subquery\n) AS x";
+        $where_str  = "\nWHERE $having_str";
+        $having_str = '';
+        $group_str  = '';
+        $sort_str   = unqualifyOrderBy($sort_str);
+
+        return array($select_str, $from_str, $where_str, $sort_str);
+
+    } // adjustHaving
+
+    // ****************************************************************************
+    function adjustWhere ($string_in)
+    // modify string which may have been altered by addslashes() as in some cases
+    // '\\' (double backslash) must be doubled up to '\\\\'
+    // - [name = 'value\\'] mst be left alone
+    // - [name LIKE 'value\\'] must be changed to [name LIKE 'value\\\\']
+    {
+        $string_out = $string_in;
+
+        $modified = false;
+
+        $array = where2indexedArray($string_out);   // convert string into indexed array
+
+        $pattern = '/^('        // begins with
+                 . '\) OR \('   // ') OR ('
+                 . '|'
+                 . '\) OR'      // ') OR'
+                 . '|'
+                 . 'OR \('      // 'OR ('
+                 . '|'
+                 . 'OR'         // 'OR'
+                 . '|'
+                 . '\) AND \('  // ') AND ('
+                 . '|'
+                 . '\) AND'     // ') AND'
+                 . '|'
+                 . 'AND \('     // 'AND ('
+                 . '|'
+                 . 'AND'        // 'AND'
+                 . '|'
+                 . '(\()+'      // one or more '('
+                 . '|'
+                 . '(\))+'      // one or more ')'
+                 . ')$/i';      // ends with, case insensitive
+        foreach ($array as $key => $value) {
+            if (preg_match($pattern, $value, $regs)) {
+            	// ignore this
+            } else {
+                list($fieldname, $operator, $fieldvalue) = splitNameOperatorValue($value);
+                if (preg_match('/^(like|rlike|regexp) /i', $fieldvalue)) {
+            	    if (preg_match('/\\\\/', $fieldvalue)) {
+            	    	$fieldvalue = str_replace('\\\\', '\\\\\\\\', $fieldvalue);
+            	    	$array[$key] = $fieldname.$operator.$fieldvalue;
+                		$modified = true;
+            	    } // if
+            	} // if
+            } // if
+        } // foreach
+
+        if ($modified) {
+        	$string_out = implode(' ', $array);
+        } // if
+
+        return $string_out;
+
+    } // adjustWhere
+
+    // ****************************************************************************
+    function array2string ($array)
+    // return an array of values (for a SET datatype) as a string.
+    {
+        // return array as a comma-separated string
+        $string = implode(',', $array);
+
+        return $string;
+
+    } // array2string
+
+    // ****************************************************************************
+    function buildKeyString ($fieldarray, $key)
+    // build a string like "name1='value1' AND name2='value2'"
+    // $fieldarray is an associative array of names and values
+    // $key        is an indexed array of key fields
+    {
+        $where      = null;
+        $null_count = 0;
+
+        foreach ($key as $fieldname) {
+            if (array_key_exists($fieldname, $fieldarray)) {
+                if (is_null($fieldarray[$fieldname])) {
+                    $fieldvalue = " IS NULL";
+                    $null_count++;
+                } else {
+            	    $fieldvalue = "='".mysqli_real_escape_string($this->dbconnect, $fieldarray[$fieldname])."'";
+                } // if
+            } else {
+                $fieldvalue = " IS NULL";
+                $null_count++;
+            } // if
+            if (empty($where)) {
+                $where  = "$fieldname$fieldvalue";
+            } else {
+                $where .= " AND $fieldname$fieldvalue";
+            } // if
+        } // foreach
+
+        if (empty($where)) {
+        	// *NO PRIMARY KEY HAS BEEN DEFINED*
+        	$where = getLanguageText('sys0033');
+        } elseif ($null_count == count($key)) {
+            $where = null;  // every field is null, so there is nothing to lookup
+        } // if
+
+        return $where;
+
+    } // buildKeyString
+
+    // ****************************************************************************
+    function commit ($dbname)
+    // commit this transaction
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $start_time = getMicroTime();
+        $this->query = 'COMMIT';
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $this->query = 'UNLOCK TABLES';
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $this->query = 'SET AUTOCOMMIT=1';
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, null, 'COMMIT; UNLOCK TABLES; SET AUTOCOMMIT=1', null, $start_time, $end_time);
+        $this->query = '';
+
+        if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        	// do nothing
+        } else {
+            $auditobj = RDCsingleton::getInstance('audit_tbl');
+            $result = $auditobj->close();
+        } // if
+
+        return $result;
+
+    } // commit
+
+    // ****************************************************************************
+    function connect ($dbname=null)
+    // establish a connection to the database
+    {
+        $this->errors = array();
+        $this->query  = '';
+        $this->dbname = $dbname;
+
+        $dbconn = $this->dbconnect;
+
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        if (!$dbconn) {
+            $start_time = getMicroTime();
+            $dbconn = mysqli_init();
+            if (!empty($this->ssl_key)) {
+                $result = $dbconn->ssl_set($this->ssl_key, $this->ssl_cert, $this->ssl_ca, $this->ssl_capath, $this->ssl_cipher) or trigger_error($this, E_USER_ERROR);
+                $result = $dbconn->real_connect($this->dbhost, $this->dbusername, $this->dbuserpass, null, $this->dbport, $this->dbsocket, MYSQLI_CLIENT_SSL) or trigger_error($this, E_USER_ERROR);
+            } else {
+                $result = $dbconn->real_connect($this->dbhost, $this->dbusername, $this->dbuserpass, null, $this->dbport, $this->dbsocket) or trigger_error($this, E_USER_ERROR);
+            } // if
+            if ($dbconn) {
+                $this->dbconnect = $dbconn;
+                // use UTF8 character set for this connection
+                $this->query = "SET names 'UTF8'";
+                $result = mysqli_query($dbconn, $this->query) or trigger_error($this, E_USER_ERROR);
+                logSqlQuery ($dbname, null, $this->query);  // write query to log file, if option is turned on
+                if (version_compare(phpversion(), '5.2.0', '>=')) {
+                    // sync DB server timezone with PHP server timezone for this connection
+                    $dt = new DateTime();
+                    $offset = $dt->format("P");
+                    $this->query = "SET time_zone = '$offset'";
+                    $result = mysqli_query($dbconn, $this->query) or trigger_error($this, E_USER_ERROR);
+                    logSqlQuery ($dbname, null, $this->query); // write query to log file, if option is turned on
+                } // if
+                // retrieve current server settings
+                $this->charset     = mysqli_character_set_name($dbconn);
+                $this->client_info = mysqli_get_client_info();
+                $this->host_info   = mysqli_get_host_info($dbconn);
+                $this->server_info = mysqli_get_server_info($dbconn);
+
+                $this->query = "SHOW VARIABLES LIKE 'character_set%'";
+                $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+                while ($row = mysqli_fetch_assoc($result)) {
+                    $name = $row['Variable_name'];
+                    $this->$name = $row['Value'];
+                } // while
+
+                if (version_compare($this->server_info, '4.1', '>=')) {
+                    $this->query = "SET SESSION sql_mode=CONCAT('ANSI_QUOTES,',@@sql_mode)";
+                    $result = mysqli_query($dbconn, $this->query) or trigger_error($this, E_USER_ERROR);
+                    logSqlQuery ($dbname, null, $this->query);  // write query to log file, if option is turned on
+                } // if
+                if (version_compare($this->server_info, '5.7', '>=')) {
+                    $this->query = "SELECT @@SESSION.sql_mode";
+                    $result = mysqli_query($dbconn, $this->query) or trigger_error($this, E_USER_ERROR);
+                    $sql_mode = mysqli_fetch_array($result, MYSQLI_NUM);
+                    if (preg_match('/ONLY_FULL_GROUP_BY/i', $sql_mode[0], $regs)) {
+                        // remove ONLY_FULL_GROUP_BY as it is NOT in the current SQL standards
+                        $modes = explode(',', $sql_mode[0]);
+                        $ix = array_search($regs[0], $modes);
+                        unset($modes[$ix]);
+                        $sql_mode = implode(',', $modes);
+                        $this->query = "SET SESSION sql_mode='$sql_mode'";
+                        $result = mysqli_query($dbconn, $this->query) or trigger_error($this, E_USER_ERROR);
+                        logSqlQuery ($dbname, null, $this->query);  // write query to log file, if option is turned on
+                    } // if
+                } // if
+                $this->query = '';
+
+                // write query to log file, if option is turned on
+                $end_time = getMicroTime();
+                logSqlQuery ($dbname, null, 'CONNECT', null, $start_time, $end_time);
+            } // if
+        } // if
+
+        if (!$dbconn) {
+            return FALSE;
+        } // if
+
+        if ($this->unbuffered_query === true) {
+            // skip this next bit to avoid a "commands out of sync" error
+        } else {
+            if ($this->dbname) {
+                $start_time = getMicroTime();
+
+                if (!mysqli_select_db($dbconn, $this->dbname)) {
+                    $errno = mysqli_errno($this->dbconnect);
+                    if ($errno == 2006) {
+                        // connection has been lost, so re-connect
+            	        $this->dbconnect = false;
+            	        $this->connect($this->dbname) or trigger_error($this, E_USER_ERROR);
+                        mysqli_select_db($dbconn, $this->dbname);
+            	    } else {
+                        return FALSE;
+            	    } // if
+                } // if
+
+                // write query to log file, if option is turned on
+                $end_time = getMicroTime();
+                logSqlQuery ($dbname, null, $this->query, null, $start_time, $end_time);
+            } // if
+        } // if
+
+        return TRUE;
+
+    } // connect
+
+    // ****************************************************************************
+    function deleteRecord ($dbname, $tablename, $fieldarray)
+    // delete the record whose primary key is contained within $fieldarray.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        // build 'where' string using values for primary key
+        $where = $this->buildKeyString ($fieldarray, $this->primary_key);
+
+        if (empty($where)) return;    // nothing to delete, so exit
+
+        // build the query string and run it
+        $this->query = "DELETE FROM $tablename WHERE $where";
+        $start_time = getMicroTime();
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $this->numrows = mysqli_affected_rows($this->dbconnect);  // get count of affected rows as there may be more than one
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $this->numrows, $start_time, $end_time);
+
+        if ($this->audit_logging) {
+        	if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        		// do nothing
+	        } else {
+	            $auditobj = RDCsingleton::getInstance('audit_tbl');
+	            // add record details to audit database
+	            $auditobj->auditDelete($dbname, $tablename, $this->fieldspec, $where, $fieldarray);
+	            $this->errors = array_merge($auditobj->getErrors(), $this->errors);
+			} // if
+        } // if
+
+        $this->query = '';
+
+        return $fieldarray;
+
+    } // deleteRecord
+
+    // ****************************************************************************
+    function deleteSelection ($dbname, $tablename, $selection, $from=null, $using=null)
+    // delete a selection of records in a single operation.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        if (!empty($from) AND !empty($using)) {
+            $this->query = "DELETE FROM $from USING $using \nWHERE $selection";
+        } else {
+            $this->query = "DELETE FROM $tablename WHERE $selection";
+        } // if
+        $start_time = getMicroTime();
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $count = mysqli_affected_rows($this->dbconnect);  // get count of affected rows as there may be more than one
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $count, $start_time, $end_time);
+
+        if ($this->audit_logging) {
+        	if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        		// do nothing
+	        } else {
+	            $auditobj = RDCsingleton::getInstance('audit_tbl');
+	            // add record details to audit database
+	            $auditobj->auditDelete($dbname, $tablename, $this->fieldspec, $selection, array());
+	            $this->errors = array_merge($auditobj->getErrors(), $this->errors);
+			} // if
+        } // if
+
+        $this->query = '';
+
+        return $count;
+
+    } // deleteSelection
+
+    // ****************************************************************************
+    function fetchRow ($dbname, $result)
+    // Fetch a row from the given result set (created with getData_serial() method).
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $row = mysqli_fetch_assoc($result);
+        if ($row) {
+        	$array = array_change_key_case($row, CASE_LOWER);
+        	return $array;
+        } else {
+            return false;
+        } // if
+
+    } // fetchRow
+
+    // ****************************************************************************
+    function findDBVersion($dbname)
+    // return the version number for this database server.
+    {
+        return $this->server_info;
+
+    } // findDBVersion
+
+    // ****************************************************************************
+    function free_result ($dbname, $resource)
+    // release a resource created with getData_serial() method.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $result = mysqli_free_result($resource);
+
+        return $result;
+
+    } // free_result
+
+    // ****************************************************************************
+    function getCount ($dbname, $tablename, $where)
+    // get count of records that satisfy selection criteria in $where.
+    {
+        $this->errors = array();
+
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        if (preg_match('/^(select )/ims', $where)) {
+            // $where starts with 'SELECT' so use it as a complete query
+            $this->query = $where;
+        } else {
+            // does not start with 'SELECT' so it must be a 'where' clause
+            if (empty($where)) {
+            	$this->query = "SELECT SQL_CALC_FOUND_ROWS * FROM $tablename LIMIT 1";
+            } else {
+                $where = $this->adjustWhere($where);
+                $this->query = "SELECT SQL_CALC_FOUND_ROWS * FROM $tablename WHERE $where LIMIT 1";
+            } // if
+        } // if
+
+        $start_time = getMicroTime();
+        //$result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $result = mysqli_query($this->dbconnect, $this->query);
+        if ($result === false) {
+            $errno = $this->getErrorNo();
+            if ($errno == 1205 AND is_True($this->no_abort_on_lock_wait)) {
+                $res = $this->rollback($dbname);
+                $this->lock_wait_count++;
+                return false;  // return and allow user to retry this transaction
+            } else {
+                trigger_error($this, E_USER_ERROR);
+            } // if
+        } // if
+
+        if (preg_match("/SQL_CALC_FOUND_ROWS /i", $this->query) == true) {
+        	$result     = mysqli_query($this->dbconnect, 'SELECT FOUND_ROWS()') or trigger_error($this, E_USER_ERROR);
+            $found_rows = mysqli_fetch_row($result);
+            $count      = $found_rows[0];
+        } else {
+            // if 'GROUP BY' was used then return the number of rows
+            // (ignore GROUP BY if it is in a subselect)
+            if (preg_match("/group[ ]by[ ]/im", $this->query) == true AND !preg_match("/\(.+group[ ]by.+\)/im", $this->query)) {
+                $count = mysqli_num_rows($result);
+            } else {
+                $query_data = mysqli_fetch_row($result);
+                $count = $query_data[0];
+            } // if
+        } // if
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $count, $start_time, $end_time);
+        $this->query = '';
+
+        return $count;
+
+    } // getCount
+
+    // ****************************************************************************
+    function getData ($dbname, $tablename, $where)
+    // get data from a database table using optional 'where' criteria.
+    // Results may be affected by $where and $pageno.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $pageno         = (int)$this->pageno;
+        $rows_per_page  = (int)$this->rows_per_page;
+        $this->numrows  = 0;
+        if ($pageno < 1) {
+        	$pageno = 1; // default to first page
+        } // if
+        $this->lastpage = $pageno;
+        $array = array();
+
+        // look for optional SELECT parameters, or default to all fields
+        if (empty($this->sql_select)) {
+            // the default is all fields
+            $select_str = '*';
+        } else {
+            $select_str = $this->sql_select;
+        } // if
+
+        // use specified FROM parameters, or default to current table name
+        if (empty($this->sql_from)) {
+            // the default is current table
+            $from_str = $tablename;
+        } else {
+            $from_str = $this->sql_from;
+            // insert <newline> in front of every JOIN statement for readability
+            $search_array  = array("/(?<!\n)LEFT JOIN/", "/(?<!\n)RIGHT JOIN/", "/(?<!\n)CROSS JOIN/", "/(?<!\n)INNER JOIN/");
+            $replace_array = array(      "\nLEFT JOIN",        "\nRIGHT JOIN",        "\nCROSS JOIN",        "\nINNER JOIN");
+            $from_str = preg_replace($search_array, $replace_array, $from_str);
+        } // if
+
+        // incorporate optional 'where' criteria
+        $where = trim($where);
+        if (empty($where)) {
+            $where_str = '';
+        } else {
+            $where_str = "\nWHERE " .$this->adjustWhere($where);
+        } // if
+
+        if (!empty($this->sql_where_append)) {
+            if (empty($where_str)) {
+                $where_str = "\nWHERE {$this->sql_where_append}";
+            } else {
+                $where_str .= " AND {$this->sql_where_append}";
+            } // if
+        } // if
+
+        // incorporate optional GROUP BY parameters
+        if (!empty($this->sql_groupby)) {
+            $group_str = "\n" ."GROUP BY $this->sql_groupby";
+            if (preg_match("/ WITH ROLLUP/i", $this->sql_groupby)) {
+            	$this->sql_orderby = null;
+            } // if
+        } else {
+            $group_str = NULL;
+        } // if
+
+        // incorporate optional sort order
+        if (!empty($this->sql_orderby)) {
+            $sort_str = "\n" ."ORDER BY $this->sql_orderby $this->sql_orderby_seq";
+        } else {
+            $sort_str = '';
+        } // if
+
+        // incorporate optional HAVING parameters
+        if (!empty($this->sql_having)) {
+            if (!empty($this->sql_union)) {
+                list($select_str, $from_str, $where_str, $sort_str) = $this->adjustHaving ($select_str, $from_str, $where_str, $group_str, $this->sql_having, $sort_str, $this->sql_union);
+                $group_str       = null;
+                $having_str      = null;
+                $this->sql_union = null;
+            } else {
+                $having_str = "\n" ."HAVING $this->sql_having";
+            } // if
+        } else {
+            $having_str = NULL;
+        } // if
+
+        $lock_str = null;
+        if ($GLOBALS['transaction_has_started'] == TRUE) {
+            if ($GLOBALS['lock_tables'] == FALSE) {
+            	if (empty($this->row_locks)) {
+                    // not defined locally, but may be defined globally
+                	$this->row_locks = $GLOBALS['lock_rows'];
+                } // if
+                // deal with row locking (optional)
+                switch ($this->row_locks){
+                    case 'SH':
+                        $lock_str = 'LOCK IN SHARE MODE';
+                        break;
+                    case 'EX':
+                        $lock_str = 'FOR UPDATE';
+                        break;
+                    default:
+                        $lock_str = 'LOCK IN SHARE MODE';
+                } // switch
+                $this->row_locks = null;
+            } // if
+        } // if
+
+        $start_time = getMicroTime();
+        do {
+            if ($pageno > $this->lastpage) {
+                // requested page is out of range, so reset it
+                $pageno = $this->lastpage;
+            } // if
+
+            if ($rows_per_page > 0) {
+                // set options for pagination
+                if (!empty($this->skip_offset)) {
+                    $offset = $this->skip_offset -1;  // use pre-calculated value
+                } else {
+                    $offset = ($pageno - 1) * $rows_per_page;
+                } // if
+                $limit_str = "\nLIMIT {$rows_per_page} OFFSET {$offset}";
+            } else {
+                $limit_str = '';  // no pagination
+            } // if
+
+            // this should only be used or testing and debugging
+            //$result = mysqli_query($this->dbconnect, 'SET lock_wait_timeout=1') or trigger_error($this, E_USER_ERROR);
+
+            // build the query string and run it
+            if (!empty($this->sql_CTE_name)) {
+                if (!empty($this->sql_search)) {
+                    $search_str = "\nWHERE ".$this->sql_search;
+                } else {
+                    $search_str = null;
+                } // if
+                $this->query = "WITH {$this->sql_CTE_name} ({$this->sql_CTE_select})
+AS (
+  {$this->sql_CTE_anchor}
+  UNION ALL
+  {$this->sql_CTE_recursive}
+)
+SELECT SQL_CALC_FOUND_ROWS $select_str
+FROM $from_str $search_str $sort_str $limit_str";
+
+            } elseif (!empty($this->sql_union)) {
+                $this->query = "(SELECT SQL_CALC_FOUND_ROWS $select_str \nFROM $from_str $where_str $group_str $having_str $lock_str)"
+                              ."\nUNION\n(".$this->sql_union.') '.unqualifyOrderBy($sort_str) .' ' .$limit_str;
+                $this->sql_union = null;
+            } else {
+                $this->query = "SELECT SQL_CALC_FOUND_ROWS $select_str \nFROM $from_str $where_str $group_str $having_str $sort_str $limit_str $lock_str";
+            } // if
+            //$result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $result = mysqli_query($this->dbconnect, $this->query);
+            if ($result === false) {
+                $errno = $this->getErrorNo();
+                if (preg_match('/^(2006|2013)$/', $errno)) {
+            	    // connection has been lost, so re-connect and retry
+            	    $this->dbconnect = false;
+                    $save_query = $this->query;
+            	    $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+                    $this->query = $save_query;
+                    unset($save_query);
+            	    $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            	} else {
+                    if (preg_match('/^(1205)$/', $errno) AND is_True($this->no_abort_on_lock_wait)) {
+                        $res = $this->rollback($dbname);
+                        $this->lock_wait_count++;
+                        return false;  // return and allow user to retry this transaction
+                    } else {
+            	        trigger_error($this, E_USER_ERROR);
+                    } // if
+            	} // if
+            } // if
+
+            $result2    = mysqli_query($this->dbconnect, 'SELECT FOUND_ROWS()') or trigger_error($this, E_USER_ERROR);
+            $found_rows = mysqli_fetch_row($result2);
+            $count      = $found_rows[0];
+
+            $this->numrows = $count;
+
+            if ($count == 0) {
+                $this->lastpage = 0;
+                $this->pageno   = 0;
+            	break;
+            } // if
+
+            if ($rows_per_page > 0) {
+                $this->lastpage = ceil($count/$rows_per_page);
+                $this->pageno = $pageno;
+            } else {
+                $this->lastpage = 1;
+                $this->pageno   = 1;
+            } // if
+        } while ($pageno > $this->lastpage); // requested page may be out of range
+
+        // convert result set into a simple associative array for each row
+        while ($row = mysqli_fetch_assoc($result)) {
+            $array[] = array_change_key_case($row, CASE_LOWER);
+        } // while
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $this->numrows, $start_time, $end_time);
+
+        mysqli_free_result($result);
+        $this->query = '';
+
+        return $array;
+
+    } // getData
+
+    // ****************************************************************************
+    function getData_serial ($dbname, $tablename, $where, $rdc_limit=null, $rdc_offset=null)
+    // Get data from a database table using optional 'where' criteria.
+    // Return $result, not an array of data, so that individual rows can
+    // be retrieved using the fetchRow() method.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $pageno         = (int)$this->pageno;
+        $rows_per_page  = (int)$this->rows_per_page;
+        $this->numrows  = 0;
+        if ($pageno < 1) {
+        	$pageno = 1; // default to first page
+        } // if
+        $this->lastpage = $pageno;
+
+        // look for optional SELECT parameters, or default to all fields
+        if (empty($this->sql_select)) {
+            // the default is all fields
+            $select_str = '*';
+        } else {
+            $select_str = $this->sql_select;
+        } // if
+
+        // use specified FROM parameters, or default to current table name
+        if (empty($this->sql_from)) {
+            // the default is current table
+            $from_str = $tablename;
+        } else {
+            $from_str = $this->sql_from;
+            // insert <newline> in front of every JOIN statement for readability
+            $search_array  = array("/(?<!\n)LEFT JOIN/", "/(?<!\n)RIGHT JOIN/", "/(?<!\n)CROSS JOIN/", "/(?<!\n)INNER JOIN/");
+            $replace_array = array(      "\nLEFT JOIN",        "\nRIGHT JOIN",        "\nCROSS JOIN",        "\nINNER JOIN");
+            $from_str = preg_replace($search_array, $replace_array, $from_str);
+        } // if
+
+        // incorporate optional 'where' criteria
+        $where = trim($where);
+        if (empty($where)) {
+            $where_str = '';
+        } else {
+            $where_str = "\nWHERE " .$this->adjustWhere($where);
+        } // if
+
+        if (!empty($this->sql_where_append)) {
+            if (empty($where_str)) {
+                $where_str = "\nWHERE {$this->sql_where_append}";
+            } else {
+                $where_str .= " AND {$this->sql_where_append}";
+            } // if
+        } // if
+
+        // incorporate optional GROUP BY parameters
+        if (!empty($this->sql_groupby)) {
+            $group_str = "\nGROUP BY $this->sql_groupby";
+            if (preg_match("/ WITH ROLLUP/i", $this->sql_groupby)) {
+            	$this->sql_orderby = null;
+            } // if
+        } else {
+            $group_str = NULL;
+        } // if
+
+        // incorporate optional HAVING parameters
+        if (!empty($this->sql_having)) {
+            $having_str = "\nHAVING $this->sql_having";
+        } else {
+            $having_str = NULL;
+        } // if
+
+        // incorporate optional sort order
+        if (!empty($this->sql_orderby)) {
+            $sort_str = "\nORDER BY $this->sql_orderby $this->sql_orderby_seq";
+        } else {
+            $sort_str = '';
+        } // if
+
+        if (!is_null($rdc_limit) OR !is_null($rdc_offset)) {
+            if (empty($rdc_limit)) {
+                $rdc_limit = 999999999;
+            } // if
+            if (empty($rdc_offset)) {
+                $rdc_offset = 0;
+            } // if
+            $limit_str = "\nLIMIT {$rdc_limit} OFFSET {$rdc_offset}";
+        } elseif ($rows_per_page > 0) {
+            $limit_str = "\nLIMIT {$rows_per_page} OFFSET " .($pageno - 1) * $rows_per_page;
+        } else {
+            $limit_str = '';
+        } // if
+
+        // build the query string and run it
+        if (!empty($this->sql_CTE_name)) {
+            if (!empty($this->sql_search)) {
+                $search_str = "\nWHERE ".$this->sql_search;
+            } else {
+                $search_str = null;
+            } // if
+            $this->query = "WITH {$this->sql_CTE_name} ({$this->sql_CTE_select})
+AS (
+  {$this->sql_CTE_anchor}
+  UNION ALL
+  {$this->sql_CTE_recursive}
+)
+SELECT SQL_CALC_FOUND_ROWS $select_str
+FROM $from_str $search_str $sort_str $limit_str";
+
+        } elseif (!empty($this->sql_union)) {
+            $this->query = "(SELECT $select_str \nFROM $from_str $where_str $group_str $having_str)"
+                          ."\nUNION\n(".$this->sql_union.') '.unqualifyOrderBy($sort_str) .' ' .$limit_str;
+            $this->sql_union = null;
+        } else {
+            $this->query = "SELECT $select_str \nFROM $from_str $where_str $group_str $having_str $sort_str $limit_str";
+        } // if
+
+        $start_time = getMicroTime();
+        if ($this->unbuffered_query === true) {
+            $result = mysqli_real_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $this->numrows = 0;
+            $result = mysqli_use_result($this->dbconnect);
+        } else {
+            $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $this->numrows = mysqli_num_rows($result);
+        } // if
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $this->numrows, $start_time, $end_time);
+
+        return $result;
+
+    } // getData_serial
+
+    // ****************************************************************************
+    function getEnum ($dbname, $tablename, $fieldname)
+    // get the contents of an ENUM field and return it as an array.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        // obtain 'enum' values for the specified column
+        $this->query = "SHOW COLUMNS FROM $tablename LIKE '$fieldname'";
+        $start_time = getMicroTime();
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $query_data = mysqli_fetch_array($result);
+        $end_time = getMicroTime();
+
+        // convert the 'enum' list into an array
+        // 1st, extract everything between '(' and ')'
+        if (preg_match("/('.*')/", $query_data[1], $enum)) {
+            // 2nd, remove all single quotes
+            $enum = str_replace("'", "", $enum[1]);
+            // 3rd, insert dummy entry so that real entries start at 1
+            $enum = ',' .$enum;
+            // last, turn list into an indexed array
+            $enum_array = explode(',', $enum);
+        } // if
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, count($enum_array), $start_time, $end_time);
+
+        mysqli_free_result($result);
+
+        $this->query = '';
+
+        return $enum_array;
+
+    } // getEnum
+
+    // ****************************************************************************
+    function getErrors ()
+    {
+        return $this->errors;
+
+    } // getErrors
+
+    // ****************************************************************************
+    function getErrorNo ()
+    // return number of last error.
+    {
+        if (empty($this->dbconnect)) {
+            $errno = null;
+        } else {
+        	$errno = mysqli_errno($this->dbconnect);
+        } // if
+
+        return $errno;
+
+    } // getErrorNo
+
+    // ****************************************************************************
+    function getErrorString ()
+    // return string containing details of last error.
+    {
+        if (!empty($this->error_string)) {
+            $string = $this->error_string;
+            $this->error_string = null;
+        } elseif ($this->dbconnect) {
+            $string = mysqli_error($this->dbconnect);
+            if (!empty($string)) {
+                $string = 'MySQL: ' .$string;
+            } // if
+        } else {
+            $conerr = mysqli_connect_error();
+            if (empty($conerr)) {
+                $conerr = getLanguageText('sys0001', $this->dbname); // 'Cannot connect to database'
+            } // if
+            $string = 'mysqli_connect(): ' . $conerr;
+        } // if
+
+        return $string;
+
+    } // getErrorString
+
+    // ****************************************************************************
+    function getErrorString2 ()
+    // return additional information.
+    {
+        if ($this->dbconnect) {
+        	$string  = 'Host Info: ' .$this->host_info ;
+            $string .= '<br>Server Version: ' .$this->server_info;
+            $string .= '<br>Client Version: ' .$this->client_info;
+            $string .= ', Character sets - client: '     .$this->character_set_client
+                                     .', - connection: ' .$this->character_set_connection
+                                     .', - database: '   .$this->character_set_database
+                                     .', - server: '     .$this->character_set_server;
+        } else {
+            $string = '';
+        } // if
+
+        return $string;
+
+    } // getErrorString2
+
+    // ****************************************************************************
+    function getLastPage ()
+    // return the last page number for retrieved rows.
+    {
+        return (int)$this->lastpage;
+
+    } // getLastPage
+
+    // ****************************************************************************
+    function getMessages ()
+    {
+        if (is_array($this->warnings)) {
+            return $this->warnings;
+        } else {
+            return array();
+        } // if
+
+    } // getMessages
+
+    // ****************************************************************************
+    function getNumRows ()
+    // return the number of rows retrived for the current page.
+    {
+        return (int)$this->numrows;
+
+    } // getNumRows
+
+    // ****************************************************************************
+    function getPageNo ()
+    // get current page number to be retrieved for a multi-page display
+    {
+        if (empty($this->pageno)) {
+            return 0;
+        } else {
+            return (int)$this->pageno;
+        } // if
+
+    } // getPageNo
+
+    // ****************************************************************************
+    function getQuery ()
+    // return the last query string that was used
+    {
+        return $this->query;
+
+    } // getQuery
+
+    // ****************************************************************************
+    function insertRecord ($dbname, $tablename, $fieldarray)
+    // insert a record using the contents of $fieldarray.
+    {
+        $this->errors   = array();
+        $this->warnings = array();
+
+        $this->numrows = 0;  // record not inserted (yet)
+
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        // get field specifications for this database table
+        $fieldspec = $this->fieldspec;
+
+        if (!preg_match('/^(audit)$/i', $dbname) AND isset($GLOBALS['mode']) AND preg_match('/^(blockchain)$/i', $GLOBALS['mode'])) {
+            // update transferred by blockchain, so don't overwrite these values
+        } else {
+            foreach ($fieldspec as $field => $spec) {
+                if (empty($fieldarray[$field])) {
+            	    // look for fields with 'autoinsert' option set
+                    if (array_key_exists('autoinsert', $spec)) {
+    				    switch ($spec['type']){
+    					    case 'datetime':
+                            case 'timestamp':
+    						    $fieldarray[$field] = getTimeStamp();
+    						    break;
+    					    case 'date':
+    						    $fieldarray[$field] = getTimeStamp('date');
+    						    break;
+    					    case 'time':
+    						    $fieldarray[$field] = getTimeStamp('time');
+    						    break;
+    					    case 'string':
+    						    $fieldarray[$field] = $_SESSION['logon_user_id'];
+    						    break;
+    					    default:
+    						    // do nothing
+    				    } // switch
+                    } // if
+                } // if
+            } // foreach
+        } // if
+
+        // find out if any field in the primary key has 'auto_increment' set
+		$auto_increment = '';
+        $ukey           = '';
+		foreach ($this->primary_key as $pkey){
+			if (isset($fieldspec[$pkey]['auto_increment'])) {
+			    $this->retry_on_duplicate_key = null;       // this feature cannot be used with auto_increment
+			    if (!empty($fieldarray[$pkey]) AND $fieldarray[$pkey] > 0) {
+			    	// value has been supplied manually, so do not auto-generate
+			    } else {
+    			    $auto_increment = $pkey;				// save name of field
+    				unset($fieldarray[$auto_increment]);	// remove from data array
+			    } // if
+			} // if
+		} // foreach
+        if (empty($auto_increment)) {
+            // not found in primary key, so look in other unique keys
+            foreach ($this->unique_keys as $key) {
+                foreach ($key as $ukey) {
+                    if (isset($fieldspec[$ukey]['auto_increment'])) {
+                        if (!empty($fieldarray[$ukey]) AND $fieldarray[$ukey] > 0) {
+                            // value has been supplied manually, so do not auto-generate
+                        } else {
+                            $auto_increment = $ukey;                // save name of field
+                            unset($fieldarray[$auto_increment]);    // remove from data array
+                            break;
+                        } // if
+                    } // if
+                } // foreach
+            } // foreach
+        } // if
+
+		if (!empty($this->retry_on_duplicate_key)) {
+        	if (!array_key_exists($this->retry_on_duplicate_key, $fieldspec)) {
+        	    // this field does not exist, so remove it
+        		$this->retry_on_duplicate_key = null;
+        	} // if
+        } // if
+
+        // build 'where' string using values for primary key
+        $primary_key = $this->buildKeyString ($fieldarray, $this->primary_key);
+
+        if (  empty($this->retry_on_duplicate_key)
+        //AND ( empty($auto_increment) AND empty($ukey)) OR (!empty($auto_increment) AND $auto_increment == $ukey)
+        AND ( empty($auto_increment)) OR (!empty($auto_increment) AND $auto_increment == $ukey)
+           ) {
+	        // find out if a record with this primary key already exists
+	        $query = "SELECT count(*) FROM $tablename WHERE $primary_key";
+	        $count = $this->getCount($dbname, $tablename, $query);
+	        // is this primary key taken?
+	        if ($count <> 0) {
+	            if (is_True($this->no_duplicate_error)) {
+	                // exit without setting an error
+	                return $fieldarray;
+
+                } elseif (is_True($this->update_on_duplicate_key)) {
+                    // switch to 'update'
+                    $old_array = where2array($primary_key);
+                    $fieldarray = $this->updateRecord ($dbname, $tablename, $fieldarray, $old_array);
+                    return $fieldarray;
+
+	            } else {
+	            	// set error message for each field within this key
+    	            foreach ($this->primary_key as $fieldname) {
+    	                $this->errors[$fieldname] = getLanguageText('sys0002'); // 'A record already exists with this ID.'
+    	            } // foreach
+    	            $this->query = $query;  // save this in case trigger_error() is called
+	            } // if
+	            return $fieldarray;
+	        } // if
+		} // if
+
+        // validate any optional unique/candidate keys
+        if (!empty($this->unique_keys)) {
+            // there may be several keys with several fields in each
+            foreach ($this->unique_keys as $key) {
+                $where = $this->buildKeyString ($fieldarray, $key);
+                if (!empty($where)) {
+                    $query = "SELECT count(*) FROM $tablename WHERE $where";
+                    $count = $this->getCount($dbname, $tablename, $query);
+                    if ($count <> 0) {
+                        if (is_True($this->no_duplicate_error)) {
+    	                    // exit without setting an error
+    	                    return $fieldarray;
+    	                } else {
+                            // set error message for each field within this key
+                            reset($key);
+                            foreach ($key as $fieldname) {
+                                $this->errors[$fieldname] = getLanguageText('sys0003'); // 'A record already exists with this key.'
+                            } // foreach
+                            $this->errors['where'] = $where;
+                            $this->query = $query;  // save this in case trigger_error() is called
+                            return $fieldarray;
+    	                } // if
+                    } // if
+                } // if
+            } // foreach
+        } // if
+
+        $repeat       = false;
+        $repeat_count = 0;
+        $pattern1 = '/(integer|decimal|numeric|float|real|double)/i';
+        $pattern2 = '/^\w+[ ]*\(.*\)$/imsx';  // function(...)
+        $start_time = getMicroTime();
+        do {
+            // insert this record into the database
+            $this->query = "INSERT INTO $tablename SET ";
+            foreach ($fieldarray as $item => $value) {
+                //if ((empty($fieldspec[$item]) OR !array_key_exists('required', $fieldspec[$item]))
+                //AND (is_null($value) OR strlen($value) == 0 OR strtoupper(trim($value)) == 'NULL')) {
+                if (is_null($value) OR strtoupper(trim($value)) == 'NULL') {
+                    $this->query .= "`$item`=NULL, ";
+				} elseif (strlen($value) == 0 AND isset($fieldspec[$item]['type']) AND preg_match($pattern1, $fieldspec[$item]['type'])) {
+					$this->query .= "`$item`=NULL, ";  // cannot use empty string for numeric fields, so use NULL instead
+                } elseif (is_array($this->allow_db_function) AND in_array($item, $this->allow_db_function) AND preg_match($pattern2, $value)) {
+                    // this is a function, so change to the new value (without enclosing quotes)
+                    $this->query .= "`$item`=$value, ";
+                } else {
+                    $this->query .= "`$item`='" .mysqli_real_escape_string($this->dbconnect, $value) ."', ";
+                } // if
+            } // foreach
+
+            // remove trailing comma
+            $this->query = rtrim($this->query, ', ');
+            if (substr($this->query, -4) == ' SET') {
+                // no field list, so remove 'SET'
+                $this->query = substr($this->query, 0, strlen($this->query)-4);
+            } // if
+
+            //$result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $result = mysqli_query($this->dbconnect, $this->query);
+            if (mysqli_warning_count($this->dbconnect) > 0) {
+                if ($rs = mysqli_query($this->dbconnect, 'SHOW WARNINGS')) {
+                    while ($row = mysqli_fetch_row($rs)) {
+                        $this->warnings[] = $row[0].' ('.$row[1].') '.$row[2];
+                    } // while
+                    mysqli_free_result($rs);
+                } // if
+            } // if
+
+            if ($result === false) {
+                $errno = mysqli_errno($this->dbconnect);
+                if ($errno == 2006) {
+                    // connection has been lost, so re-connect and try again
+                    $this->dbconnect = false;
+                    $this->connect($this->dbname) or trigger_error($this, E_USER_ERROR);
+                    $repeat = true;
+
+                } elseif ($errno == 1062 AND !empty($this->retry_on_duplicate_key)) {
+                    // increment the specified field and try again
+                    if (isset($fieldspec['precision']) AND $fieldspec['precision'] == 38) {
+                        $sum = gmp_add($fieldarray[$this->retry_on_duplicate_key], 1);
+                        $fieldarray[$this->retry_on_duplicate_key] = gmp_strval($sum);
+                    } else {
+                        $fieldarray[$this->retry_on_duplicate_key]++;
+                    } // if
+                    $repeat = true;
+                    $repeat_count++;
+                    if ($repeat_count > 5) {
+                        // too many retries, so turn this feature off
+                    	$this->retry_on_duplicate_key = null;
+                    } // if
+
+                } elseif ($errno == 1062 AND !empty($this->update_on_duplicate_key)) {
+                    // switch to 'update'
+                    $old_array = where2array($primary_key);
+                    $fieldarray = $this->updateRecord ($dbname, $tablename, $fieldarray, $old_array);
+                    return $fieldarray;
+
+                } elseif ($errno == 1062 AND is_True($this->no_duplicate_error)) {
+                    // this is a duplicate, but don't fail
+                    $this->numrows = 0;
+
+                } else {
+            	    trigger_error($this, E_USER_ERROR);
+                } // if
+            } else {
+                $repeat = false;
+                $this->numrows = 1;  // record has been inserted
+            } // if
+        } while ($repeat == true);
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, 1, $start_time, $end_time);
+
+		if (!empty($auto_increment)) {
+			// obtain the last value used by auto_increment
+			$fieldarray[$auto_increment] = mysqli_insert_id($this->dbconnect);
+			$primary_key = $this->buildKeyString ($fieldarray, $this->primary_key);
+		} // if
+
+		if ($this->numrows > 0) {
+			if ($this->audit_logging) {
+				if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        			// do nothing
+		        } else {
+	                $auditobj = RDCsingleton::getInstance('audit_tbl');
+	                // add record details to audit database
+	                $auditobj->auditInsert($dbname, $tablename, $this->fieldspec, $primary_key, $fieldarray);
+	                $this->errors = array_merge($auditobj->getErrors(), $this->errors);
+				} // if
+            } // if
+		} // if
+
+        $this->numrows = 1;  // record has been inserted
+        $this->query = '';
+
+        return $fieldarray;
+
+    } // insertRecord
+
+    // ****************************************************************************
+    function multiQuery ($dbname, $tablename, $query_array)
+    // perform multiple queries in a single step
+    {
+        $this->errors = array();
+
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $single_step = true;  // special code to debug each query separately
+        if ($single_step) {
+            // execute these statements one at a time
+            foreach ($query_array as $query_part) {
+                $this->query = $query_part;
+                $result = mysqli_query($this->dbconnect, $this->query);
+                if ($result === false) {
+                    $errno = mysqli_errno($this->dbconnect);
+                    if ($errno == 2006) {
+                        // connection has been lost, so re-connect and retry
+                        $this->dbconnect = false;
+                        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+                        $this->query = $query_part;
+                        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+                    } else {
+                        trigger_error($this, E_USER_ERROR);
+                    } // if
+                } // if
+            } // foreach
+            if (count($query_array) == 1) {
+                // only a single query, so return result in full
+                if (is_bool($result)) {
+                    return $result;
+                } else {
+                    $array = array();
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        $array[] = array_change_key_case($row, CASE_LOWER);
+                    } // while
+                    mysqli_free_result($result);
+                    return $array;
+                } // if
+            } // if
+            return true;
+        } // if
+
+        // perform multiple queries in a single step
+
+        // turn array into one long string
+        $this->query = implode($query);
+
+        $result = mysqli_multi_query($this->dbconnect, $this->query);
+        if (!$result) {
+            trigger_error($this, E_USER_ERROR);
+        } // if
+
+        while (mysqli_more_results($this->dbconnect)) {
+            if ($result2 = mysqli_store_result($this->dbconnect)) {
+                $result3 = mysqli_free_result($result2);
+            } // if
+            $result4 = mysqli_next_result($this->dbconnect);
+        } // while
+
+        return $result;
+
+    } // multiQuery
+
+    // ****************************************************************************
+    function rollback ($dbname)
+    // rollback this transaction due to some sort of error.
+    {
+        $this->errors = array();
+
+        if (!$this->dbconnect) {
+            // not connected yet, so do nothing
+            return FALSE;
+        } // if
+
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        //$result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $repeat       = false;
+        $repeat_count = 0;
+        $start_time = getMicroTime();
+        do {
+            $this->query = 'ROLLBACK';
+            $result = mysqli_query($this->dbconnect, $this->query);
+            if ($result == false) {
+                $errno = mysqli_errno($this->dbconnect);
+                if ($errno == 2006) {
+                    // connection has been lost, so re-connect and try again
+                    $this->dbconnect = false;
+                    $this->connect($this->dbname) or trigger_error($this, E_USER_ERROR);
+                    $repeat = true;
+                } elseif ($errno == 1196) {
+                    // Warning: Some non-transactional changed tables couldn't be rolled back, so ignore and continue
+                } else {
+                    trigger_error($this, E_USER_ERROR);
+                } // if
+            } else {
+                $repeat = false;
+            } // if
+        } while ($repeat == true);
+
+        $this->query = 'UNLOCK TABLES';
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $this->query = 'SET AUTOCOMMIT=1';
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, null, 'ROLLBACK; UNLOCK TABLES; SET AUTOCOMMIT=1', null, $start_time, $end_time);
+        $this->query = '';
+
+        if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        	// do nothing
+        } else {
+            $auditobj = RDCsingleton::getInstance('audit_tbl');
+            $result = $auditobj->close();
+        } // if
+
+        $GLOBALS['transaction_has_started'] = false;
+
+        return $result;
+
+    } // rollback
+
+    // ****************************************************************************
+    function selectDB ($dbname)
+    // select a different database via the current connection.
+    {
+        return mysqli_select_db($this->dbconnect, $dbname);
+
+    } // selectDB
+
+    // ****************************************************************************
+    function setErrorString ($string)
+    // capture string from last non-fatal error.
+    {
+        $this->error_string = trim($string);
+
+        return;
+
+    } // setErrorString
+
+    // ****************************************************************************
+    function setOrderBy ($sql_orderby)
+    // this allows a sort order to be specified (see getData)
+    {
+        $this->sql_orderby = trim($sql_orderby);
+
+    } // setOrderBy
+
+    // ****************************************************************************
+    function setOrderBySeq ($sql_orderby_seq)
+    // this allows a sort sequence ('asc' or 'desc') to be set (see getData)
+    {
+        $this->sql_orderby_seq = trim($sql_orderby_seq);
+
+    } // setOrderBySeq
+
+    // ****************************************************************************
+    function setPageNo ($pageno='1')
+    // this allows a particular page number to be selected (see getData)
+    {
+        $this->pageno = (int)$pageno;
+
+    } // setPageNo
+
+    // ****************************************************************************
+    function setRowLocks ($level=null, $supplemental=null)
+    // set row-level locks on next SELECT statement
+    {
+        // upshift first two characters
+        $level = substr(strtoupper($level),0,2);
+
+        switch ($level){
+            case 'SH':
+                $this->row_locks = 'SH';
+                break;
+            case 'EX':
+                $this->row_locks = 'EX';
+                break;
+            default:
+                $this->row_locks = null;
+        } // switch
+
+        $this->row_locks_supp = $supplemental;
+
+        return;
+
+    } // setRowLocks
+
+    // ****************************************************************************
+    function setRowsPerPage ($rows_per_page)
+    // this allows the default value to be changed
+    {
+        if ($rows_per_page > 0) {
+            $this->rows_per_page = (int)$rows_per_page;
+        } // if
+
+    } // setRowsPerPage
+
+    // ****************************************************************************
+    function setSqlSearch ($sql_search)
+    // set additional criteria to be used in sql select
+    {
+        $this->sql_search = trim($sql_search);
+
+    } // setSqlSearch
+
+    // ****************************************************************************
+    function startTransaction ($dbname)
+    // start a new transaction, to be terminated by either COMMIT or ROLLBACK.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        if (!empty($this->transaction_level)) {
+            $this->query = $this->transaction_level;
+            $start_time = getMicroTime();
+            $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $end_time = getMicroTime();
+            logSqlQuery ($dbname, null, $this->query, null, $start_time, $end_time);
+        } // if
+
+        $this->query = 'START TRANSACTION';
+        $start_time = getMicroTime();
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $this->query = 'SET AUTOCOMMIT=0';
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, null, 'START TRANSACTION (SET AUTOCOMMIT=0)', null, $start_time, $end_time);
+        $this->query = '';
+
+        if (!empty($this->table_locks)) {
+        	$result = $this->_setDatabaseLock($this->table_locks);
+        } // if
+
+        return $result;
+
+    } // startTrasaction
+
+    // ****************************************************************************
+    function updateRecord ($dbname, $tablename, $fieldarray, $oldarray, $where=null)
+    // update a record using the contents of $fieldarray.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        // get field specifications for this database table
+        $fieldspec = $this->fieldspec;
+
+        $this->numrows = 0;
+
+        if (strlen($where) == 0) {
+            // build 'where' string using values for primary key
+            $where = $this->buildKeyString ($oldarray, $this->primary_key);
+        } else {
+        	// use $where as supplied, and remove pkey specs so their values can be changed
+        	$this->unique_keys[] = $this->primary_key;  // but still check for duplicate value
+        	$this->primary_key = array();
+        } // if
+
+        // validate any optional unique/candidate keys
+        if (!empty($this->unique_keys)) {
+            // there may be several keys with several fields in each
+            foreach ($this->unique_keys as $key) {
+                $where1 = $this->buildKeyString ($oldarray, $key);
+                $where2 = $this->buildKeyString ($fieldarray, $key);
+                //if (strlen($where2) > 0 AND $where1 <> $where2) {
+                if (strlen($where2) > 0 AND strcasecmp($where1, $where2) <> 0) {
+                    // key has changed, so check for uniqueness
+                    $query = "SELECT count(*) FROM $tablename WHERE $where2";
+                    $count = $this->getCount($dbname, $tablename, $query);
+                    if ($count <> 0) {
+                        // set error message for each field within this key
+                        reset($key);
+                        foreach ($key as $fieldname) {
+                            $this->errors[$fieldname] = getLanguageText('sys0003'); // 'A record already exists with this key.'
+                        } // foreach
+                        $this->errors['where'] = $where;
+                        $this->query = $query;  // save this in case trigger_error() is called
+                        return $fieldarray;
+                    } // if
+                } // if
+            } // foreach
+        } // if
+
+        // remove any values that have not changed
+        $fieldarray = getChanges($fieldarray, $oldarray);
+
+        if (empty($fieldarray)) {
+            // nothing to update, so return now
+            return $fieldarray;
+        } // if
+
+        if (isset($GLOBALS['mode']) AND preg_match('/^(logon)$/', $GLOBALS['mode']) AND $tablename == 'mnu_user') {
+            // do not set these fields when logging in
+        } elseif (isset($GLOBALS['mode']) AND preg_match('/^(blockchain)$/i', $GLOBALS['mode'])) {
+            // update transferred by blockchain, so don't overwrite these values
+        } else {
+            foreach ($fieldspec as $field => $spec) {
+            	// look for fields with 'autoupdate' option set
+                if (array_key_exists('autoupdate', $spec)) {
+                    switch ($spec['type']){
+    					case 'datetime':
+                        case 'timestamp':
+    					    if (empty($fieldarray[$field])) {
+    						    $fieldarray[$field] = getTimeStamp();
+    					    } // if
+    						break;
+    					case 'date':
+    					    if (empty($fieldarray[$field])) {
+    						    $fieldarray[$field] = getTimeStamp('date');
+    					    } // if
+    						break;
+    					case 'time':
+    					    if (empty($fieldarray[$field])) {
+						        $fieldarray[$field] = getTimeStamp('time');
+    					    } // if
+						    break;
+					    case 'string':
+					        if (empty($fieldarray[$field])) {
+    						    $fieldarray[$field] = $_SESSION['logon_user_id'];
+					        } // if
+    						break;
+    					case 'integer':
+					        $fieldarray[$field] = $oldarray[$field] +1;
+					        break;
+    					default:
+    						// do nothing
+    				} // switch
+                } // if
+            } // foreach
+        } // if
+
+        $repeat = false;
+        $pattern1 = '/(integer|decimal|numeric|float|real|double)/i';
+        $pattern2 = '/^\w+[ ]*\(.*\)$/imsx';  // function(...)
+        do {
+            // build update string from non-pkey fields
+            $update = '';
+            foreach ($fieldarray as $item => $value) {
+                // use this item if it IS NOT part of primary key
+                if (!in_array($item, $this->primary_key)) {
+                    if (is_null($value) OR strtoupper(trim($value)) == 'NULL') {
+                        // null entries are set to NULL, not '' (there is a difference!)
+                        $update .= "`$item`=NULL,";
+                    } elseif (preg_match($pattern1, $fieldspec[$item]['type'], $match)) {
+                        // do not enclose numbers in quotes (this also allows 'value=value+1'
+                        if (strlen($value) == 0) {
+                    	    $update .= "`$item`=NULL,";
+                    	} else {
+                            $update .= "`$item`=$value,";
+                        } // if
+                    } elseif (is_array($this->allow_db_function) AND in_array($item, $this->allow_db_function) AND preg_match($pattern2, $value)) {
+                        // this is a function, so change to the new value (without enclosing quotes)
+                        $update .= "`$item`=" .mysqli_real_escape_string($this->dbconnect, $value) .", ";
+                    } else {
+                        // change to the new value (with enclosing quotes))
+                        $update .= "`$item`='" .mysqli_real_escape_string($this->dbconnect, $value) ."', ";
+                    } // if
+                } // if
+            } // foreach
+
+            // strip trailing comma
+            $update = rtrim($update, ', ');
+
+            // append WHERE clause to SQL query
+            $this->query = "UPDATE $tablename SET $update WHERE $where";
+
+            //$result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $start_time = getMicroTime();
+            $result = mysqli_query($this->dbconnect, $this->query);
+            if (mysqli_warning_count($this->dbconnect) > 0) {
+                if ($rs = mysqli_query($this->dbconnect, 'SHOW WARNINGS')) {
+                    while ($row = mysqli_fetch_row($rs)) {
+                        $this->warnings[] = $row[0].' ('.$row[1].') '.$row[2];
+                    } // while
+                    mysqli_free_result($rs);
+                } // if
+            } // if
+            $end_time = getMicroTime();
+
+            if ($result === false) {
+                $errno = mysqli_errno($this->dbconnect);
+                if ($errno == 2006) {
+                    // connection has been lost, so re-connect and try again
+                    $this->dbconnect = false;
+                    $this->connect($this->dbname) or trigger_error($this, E_USER_ERROR);
+                    $repeat = true;
+                } // if
+            } // if
+        } while ($repeat == true);
+
+        // get count of affected rows as there may be more than one
+        $this->numrows = mysqli_affected_rows($this->dbconnect);
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $this->numrows, $start_time, $end_time);
+
+        if ($this->audit_logging) {
+        	if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        		// do nothing
+	        } else {
+	            $auditobj = RDCsingleton::getInstance('audit_tbl');
+	            // add record details to audit database
+	            $auditobj->auditUpdate($dbname, $tablename, $this->fieldspec, $where, $fieldarray, $oldarray);
+	            $this->errors = array_merge($auditobj->getErrors(), $this->errors);
+			} // if
+        } // if
+
+        $this->query = '';
+
+        return $fieldarray;
+
+    } // updateRecord
+
+    // ****************************************************************************
+    function updateSelection ($dbname, $tablename, $replace, $selection)
+    // update a selection of records in a single operation.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $this->query = "UPDATE $tablename SET $replace WHERE $selection";
+        $start_time = getMicroTime();
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+        $count = mysqli_affected_rows($this->dbconnect);
+        $end_time = getMicroTime();
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $count, $start_time, $end_time);
+
+        if ($count > 0) {
+            if ($this->audit_logging) {
+            	if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+        			// do nothing
+		        } else {
+	                $auditobj = RDCsingleton::getInstance('audit_tbl');
+	                // add record details to audit database
+	                $auditobj->auditUpdateSelection($dbname, $tablename, $this->fieldspec, $selection, $replace);
+	                $this->errors = array_merge($auditobj->getErrors(), $this->errors);
+				} // if
+            } // if
+        } // if
+
+        $this->query = '';
+
+        return $count;
+
+    } // updateSelection
+
+    // ****************************************************************************
+    // the following are DDL (Data Definition Language) methods
+    // ****************************************************************************
+    function ddl_getColumnSpecs ()
+    // return the array of column specifications.
+    {
+        $colspecs['varchar']    = array('name' => 'VARCHAR',
+                                        'type' => 'string',
+                                        'size' => 255);
+        $colspecs['char']       = array('name' => 'CHAR',
+                                        'type' => 'string',
+                                        'size' => 255);
+        $colspecs['decimal']    = array('name' => 'DECIMAL',
+                                        'type' => 'numeric',
+                                        'size' => 38);
+        $colspecs['boolean']    = array('name' => 'BOOLEAN',
+                                        'type' => 'boolean',
+                                        'size' => 1);
+        $colspecs['bit']        = array('name' => 'BIT',
+                                        'type' => 'bit');
+        $colspecs['tinyint']    = array('name' => 'TINYINT',
+                                        'type' => 'integer',
+                                        'minvalue' => -128,
+                                        'maxvalue' => 127,
+                                        'size' => 3);
+        $colspecs['smallint']   = array('name' => 'SMALLINT',
+                                        'type' => 'integer',
+                                        'minvalue' => -32768,
+                                        'maxvalue' => 32767,
+                                        'size' => 5);
+        $colspecs['mediumint']  = array('name' => 'MEDIUMINT',
+                                        'type' => 'integer',
+                                        'minvalue' => -8388608,
+                                        'maxvalue' => 8388607,
+                                        'size' => 7);
+        $colspecs['int']        = array('name' => 'INT',
+                                        'type' => 'integer',
+                                        'minvalue' => -2147483648,
+                                        'maxvalue' => 2147483647,
+                                        'size' => 11);
+        $colspecs['integer']    = array('name' => 'INTEGER',
+                                        'type' => 'integer',
+                                        'minvalue' => -2147483648,
+                                        'maxvalue' => 2147483647,
+                                        'size' => 11);
+        $colspecs['bigint']     = array('name' => 'BIGINT',
+                                        'type' => 'integer',
+                                        'minvalue' => '-9223372036854775808',
+                                        'maxvalue' => '9223372036854775807',
+                                        'size' => 20);
+        $colspecs['float']      = array('name' => 'FLOAT',
+                                        'type' => 'float',
+                                        'size' => 22);
+        $colspecs['double']     = array('name' => 'DOUBLE',
+                                        'type' => 'float',
+                                        'size' => 22);
+        $colspecs['date']       = array('name' => 'DATE',
+                                        'type' => 'date',
+                                        'size' => 12);
+        $colspecs['datetime']   = array('name' => 'DATETIME',
+                                        'type' => 'datetime',
+                                        'size' => 20);
+        $colspecs['time']       = array('name' => 'TIME',
+                                        'type' => 'time',
+                                        'size' => 10);
+        $colspecs['timestamp']  = array('name' => 'TIMESTAMP',
+                                        'type' => 'timestamp',
+                                        'size' => 20);
+        $colspecs['year']       = array('name' => 'YEAR',
+                                        'type' => 'numeric',
+                                        'size' => 4,
+                                        'minvalue' => 1901,
+                                        'maxvalue' => 2155);
+        $colspecs['tinytext']   = array('name' => 'TINYTEXT',
+                                        'type' => 'string',
+                                        'size' => 255);
+        $colspecs['text']       = array('name' => 'TEXT',
+                                        'type' => 'string',
+                                        'size' => 65535);
+        $colspecs['mediumtext'] = array('name' => 'MEDIUMTEXT',
+                                        'type' => 'string',
+                                        'size' => 16777215);
+        $colspecs['longtext']   = array('name' => 'LONGTEXT',
+                                        'type' => 'string',
+                                        'size' => 4294967295);
+        $colspecs['tinyblob']   = array('name' => 'TINYBLOB',
+                                        'type' => 'blob',
+                                        'size' => 255);
+        $colspecs['blob']       = array('name' => 'BLOB',
+                                        'type' => 'blob',
+                                        'size' => 65535);
+        $colspecs['mediumblob'] = array('name' => 'MEDIUMBLOB',
+                                        'type' => 'blob',
+                                        'size' => 16777215);
+        $colspecs['longblob']   = array('name' => 'LONGBLOB',
+                                        'type' => 'blob',
+                                        'size' => 4294967295);
+        $colspecs['enum']       = array('name' => 'ENUM',
+                                        'type' => 'enum',
+                                        'size' => 255);
+        $colspecs['set']        = array('name' => 'SET',
+                                        'type' => 'array',
+                                        'size' => 255);
+        $colspecs['varbinary']  = array('name' => 'VARBINARY',
+                                        'type' => 'blob',
+                                        'size' => 255);
+
+        return $colspecs;
+
+    } // ddl_getColumnSpecs
+
+    // ****************************************************************************
+    function ddl_showColumns ($dbname, $tablename)
+    // obtain a list of column names within the selected database table.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $out_array = array();
+
+        $this->query = "SELECT * FROM information_schema.columns WHERE LOWER(table_schema)='$dbname' AND lower(table_name)='$tablename' ORDER BY ordinal_position";
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $count = mysqli_num_rows($result);
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $count);
+
+        $colspecs = $this->ddl_getColumnSpecs();
+
+        while ($row = mysqli_fetch_assoc($result)) {
+            // initialise all settings
+            $columnarray = array();
+            $columnarray['col_maxsize']         = NULL;
+            $columnarray['col_unsigned']        = NULL;
+            $columnarray['col_precision']       = NULL;
+            $columnarray['col_scale']           = NULL;
+            $columnarray['col_minvalue']        = NULL;
+            $columnarray['col_maxvalue']        = NULL;
+            $columnarray['col_auto_increment']  = NULL;
+            $columnarray['col_key']             = NULL;
+
+            $columnarray['column_id']              = strtolower($row['COLUMN_NAME']);
+            $columnarray['column_seq']             = (int)($row['ORDINAL_POSITION']);
+            $columnarray['col_default']            = $row['COLUMN_DEFAULT'];
+            if (!empty($columnarray['col_default'])) {
+                if (preg_match('/^(CURRENT_TIMESTAMP)$/i', $columnarray['col_default'])) {
+                    $columnarray['auto_insert']      = TRUE;
+                    $columnarray['noedit_nodisplay'] = 'NED';
+                } // if
+            } // if
+            if (!empty($row['EXTRA'])) {
+                if (preg_match('/(on update CURRENT_TIMESTAMP)$/i', $row['EXTRA'])) {
+                    $columnarray['auto_update']    = TRUE;
+                    $columnarray['noedit_nodisplay'] = 'NED';
+                } // if
+            } // if
+            if (is_True($row['IS_NULLABLE'])) {
+                $columnarray['col_null']           = 'Y';
+            } else {
+                $columnarray['col_null']           = 'N';
+            } // if
+            $columnarray['col_key']                = $row['COLUMN_KEY'];
+            $columnarray['col_comment']            = $row['COLUMN_COMMENT'];
+            if (preg_match('/auto_increment/i', $row['EXTRA'])) {
+                $columnarray['col_auto_increment'] = TRUE;
+            } // if
+            $columnarray['col_type']               = strtolower($row['DATA_TYPE']);
+
+            unset($precision, $scale, $minvalue, $maxvalue);
+            $type  = $columnarray['col_type'];
+            $specs = $colspecs[$type];
+
+            if (isset($specs['size'])) {
+                $columnarray['col_maxsize'] = $specs['size'];
+            } // if
+
+            if ($specs['type'] == 'string') {
+                if (!is_null($row['CHARACTER_MAXIMUM_LENGTH']) AND $row['CHARACTER_MAXIMUM_LENGTH'] > 0) {
+                    $columnarray['col_maxsize'] = $row['CHARACTER_MAXIMUM_LENGTH'];
+                } // if
+            } // if
+
+            if (preg_match('/unsigned/i', $row['COLUMN_TYPE'])) {
+                $columnarray['col_unsigned']       = TRUE;
+            } // if
+
+            if (preg_match('/zerofill/i', $row['COLUMN_TYPE'])) {
+                $columnarray['col_zerofill_bwz']    = 'ZF';
+            } // if
+
+            if (preg_match('/^(enum|set)/i', $row['COLUMN_TYPE'], $regs)) {
+                $columnarray['col_type'] = $regs[0];
+                preg_match('/(?<=\().+(?=\))/', $row['COLUMN_TYPE'], $regs);
+                $value = $regs[0];
+                // include a space after each comma otherwise the string is treated as a single word in the HTML output
+                $value = str_replace("','", "', '", $value);
+                $columnarray['col_values'] = $value;
+            } // if
+
+            // check to see if precision and scale have been specified for numeric types
+            if (preg_match('/(integer|double|numeric|float|bit)/i', $specs['type']) AND preg_match('/(?<=\().+(?=\))/', $row['COLUMN_TYPE'], $regs)) {
+            //if (preg_match('/(numeric|float)/i', $specs['type']) AND preg_match('/(?<=\().+(?=\))/', $row['COLUMN_TYPE'], $regs)) {
+                // extract value between '(' and ')'
+                $extra = $regs[0];
+                if (strpos($extra, ',')) {
+                    list($precision, $scale) = explode(',', $extra);
+                } else {
+                    $precision = $extra;
+                    $scale     = 0;
+                } // if
+                if (preg_match('/(integer|double)/i', $specs['type'])) {
+                    // integers don't have decimal places, so use this as user_size
+                    $columnarray['user_size']   = (int)$precision;
+                    unset($precision,$scale);
+                    $columnarray['col_maxsize'] = (int)$row['NUMERIC_PRECISION']+1;
+                    if ($columnarray['user_size'] > $columnarray['col_maxsize']) {
+                        $columnarray['user_size'] = $columnarray['col_maxsize'];
+                    } // if
+                    $minvalue                   =& $specs['minvalue'];
+                    $maxvalue                   =& $specs['maxvalue'];
+
+                } elseif (preg_match('/(bit)/i', $specs['type'])) {
+                    // identify how many bits can be stored in this field
+                    $columnarray['user_size']   = (int)$precision;
+                    $columnarray['col_maxsize'] = (int)$row['NUMERIC_PRECISION'];
+                    unset($precision,$scale);
+
+                } else {
+                    $precision = (int)$precision;
+                    $scale     = (int)$scale;
+                } // if
+            } else {
+                if (strlen($row['NUMERIC_PRECISION']) > 0 AND strlen($row['NUMERIC_SCALE']) > 0) {
+                    // both of these must be present
+                    if ($row['NUMERIC_PRECISION'] > 0) {
+                        $precision = (int)$row['NUMERIC_PRECISION'];
+                        $scale     = null;
+                    } // if
+                    if ($row['NUMERIC_SCALE'] > 0) {
+                        $scale = (int)$row['NUMERIC_SCALE'];
+                    } // if
+                } // if
+            } // if
+            if (isset($precision)) {
+                $columnarray['col_precision']   = $precision;
+                $columnarray['col_scale']       = $scale;
+                $columnarray['col_maxsize']     = $precision;
+                if ($scale > 0) {
+                    $columnarray['col_maxsize'] = $columnarray['col_maxsize'] + 1;  // include decimal point
+                } // if
+                if (!is_True($columnarray['col_unsigned'])) {
+                    $columnarray['col_maxsize'] = $columnarray['col_maxsize'] + 1;  // include sign
+                } // if
+                if ($precision > 0 OR $scale > 0) {
+                    if (is_True($columnarray['col_unsigned'])) {
+                        $minvalue = 0;
+                    } else {
+                        // minvalue includes negative sign
+                        if ($precision > 1) {
+                            $minvalue = '-' . str_repeat('9', $precision-1);
+                        } else {
+                            $minvalue = '-' . str_repeat('9', $precision);
+                        } // if
+                        if ($scale > 0) {
+                            // adjust values to include decimal places
+                            $minvalue = $minvalue / pow(10, $scale);
+                        } // if
+                    } // if
+                    // maxvalue has no positive sign
+                    $maxvalue = str_repeat('9', $precision);
+                    if ($scale > 0) {
+                        // adjust values to include decimal places
+                        $maxvalue = $maxvalue / pow(10, $scale);
+                    } // if
+                } else {
+                    // look for minimum/maximum values in colspecs
+                    if (isset($specs['minvalue'])) {
+                        $minvalue = $specs['minvalue'];
+                    } // if
+                    if (isset($specs['maxvalue'])) {
+                        $maxvalue = $specs['maxvalue'];
+                    } // if
+                } // if
+            } // if
+            if (isset($minvalue)) {
+                if (is_True($columnarray['col_unsigned'])) {
+                    $columnarray['col_minvalue'] = 0;
+                } else {
+                    $columnarray['col_minvalue'] = $minvalue;
+                } // if
+            } // if
+            if (isset($maxvalue)) {
+                $columnarray['col_maxvalue'] = $maxvalue;
+                if (is_True($columnarray['col_unsigned'])) {
+                    if (isset($specs['maxvalue']) AND $specs['maxvalue'] == $maxvalue) {
+                        $columnarray['col_maxvalue'] = ($columnarray['col_maxvalue']*2)+1;
+                    } // if
+                } // if
+            } // if
+
+            if ($columnarray['col_type'] == 'char') {
+                if ($columnarray['col_maxsize'] == 1) {
+                    // this can also be used as 'boolean'
+                    $columnarray['col_type_native'] = $columnarray['col_type'].',boolean';
+                } // if
+            } elseif (preg_match('/int/i', $columnarray['col_type'])) {
+                // this can also be used as 'boolean'
+                $columnarray['col_type_native'] = $columnarray['col_type'].',boolean';
+            } // if
+
+            if ($columnarray['col_type'] == 'numeric' AND $scale == 0) {
+                $columnarray['col_type'] = 'integer';
+            } // if
+
+            if (!isset($columnarray['col_type_native'])) {
+                $columnarray['col_type_native'] = $columnarray['col_type'];
+            } // if
+
+            $out_array[] = $columnarray;
+        } // while
+
+        mysqli_free_result($result);
+
+        return $out_array;
+
+    } // ddl_showColumns
+
+    // ****************************************************************************
+    function ddl_showDatabases ($dbprefix=null)
+    // obtain a list of existing database names.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect() or trigger_error($this, E_USER_ERROR);
+
+        $array = array();
+
+        // build the query string and run it
+        if (empty($dbprefix)) {
+        	$this->query = 'SHOW DATABASES';
+        } else {
+            $this->query = "SHOW DATABASES LIKE '$dbprefix%'";
+        } // if
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $count = mysqli_num_rows($result);
+
+        // write query to log file, if option is turned on
+        logSqlQuery (null, null, $this->query, $count);
+
+        // convert result set into a simple indexed array for each row
+        while ($row = mysqli_fetch_row($result)) {
+            $array[] = $row[0];
+        } // while
+
+        mysqli_free_result($result);
+
+        return $array;
+
+    } // ddl_showDatabases
+
+    // ****************************************************************************
+    function ddl_showTables ($dbname)
+    // obtain a list of tables within the specified database.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $array = array();
+
+        // build the query string and run it
+        $this->query = 'SHOW TABLES FROM "' .$dbname .'"';
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $count = mysqli_num_rows($result);
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, null, $this->query, $count);
+
+        // convert result set into a simple indexed array for each row
+        while ($row = mysqli_fetch_row($result)) {
+            $array[] = $row[0];
+        } // while
+
+        mysqli_free_result($result);
+
+        return $array;
+
+    } // ddl_showTables
+
+    // ****************************************************************************
+    function ddl_showTableKeys ($dbname, $tablename)
+    // obtain a list of keys (indexes) for this table.
+    {
+        $dmlobject = $this;  // ensure this is in $errcontext if an error occurs
+
+        $this->connect($dbname) or trigger_error($this, E_USER_ERROR);
+
+        $array = array();
+
+        // build the query string and run it
+        //$this->query = 'SHOW INDEX FROM "' .$tablename .'"';
+        $this->query = "SELECT * FROM information_schema.statistics WHERE LOWER(table_schema)='$dbname' AND lower(table_name)='$tablename' ORDER BY index_name, seq_in_index";
+        $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+
+        $count = mysqli_num_rows($result);
+
+        // write query to log file, if option is turned on
+        logSqlQuery ($dbname, $tablename, $this->query, $count);
+
+        // convert result set into a simple indexed array for each row
+        while ($row = mysqli_fetch_assoc($result)) {
+            $keyarray = array();
+            $row = array_change_key_case($row, CASE_LOWER);
+            foreach ($row as $item => $value) {
+                $item = strtolower($item);
+                if ($item == 'column_name') {
+                    $keyarray['column_id'] = strtolower($value);
+                } elseif ($item == 'index_name') {
+                    $keyarray['key_name'] = strtolower($value);
+                } elseif ($item == 'non_unique') {
+                    if ($value == 0) {
+                        $keyarray['is_unique'] = TRUE;
+                    } else {
+                        $keyarray['is_unique'] = FALSE;
+                    } // if
+                } else {
+                    $keyarray[$item] = $value;
+                } // if
+            } // foreach
+            $array[] = $keyarray;
+        } // while
+
+        mysqli_free_result($result);
+
+        return $array;
+
+    } // ddl_showTableKeys
+
+    // ****************************************************************************
+    function _setDatabaseLock ($table_locks)
+    // lock database tables identified in $string
+    {
+        foreach ($table_locks as $mode => $mode_array) {
+            foreach ($mode_array as $table) {
+                if (empty($string)) {
+                    $string = "$table $mode";
+                } else {
+                    $string .= ", $table $mode";
+                } // if
+            } // foreach
+        } // foreach
+
+        if (!empty($string)) {
+            $this->query = 'SET AUTOCOMMIT=0';
+            $start_time = getMicroTime();
+            $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $this->query = "LOCK TABLES $string";
+            $result = mysqli_query($this->dbconnect, $this->query) or trigger_error($this, E_USER_ERROR);
+            $end_time = getMicroTime();
+            // write query to log file, if option is turned on
+            logSqlQuery (null, null, "SET AUTOCOMMIT=0, LOCK TABLES $string", null, $start_time, $end_time);
+            $this->query = '';
+            return $result;
+        } // if
+
+        return true;
+
+    } // _setDatabaseLock
+
+    // ****************************************************************************
+    function __sleep ()
+    // perform object clean-up before serialization
+    {
+
+        // get associative array of class variables
+        $object_vars = get_object_vars($this);
+
+        // remove unwanted variables
+        //unset($object_vars['data_raw']);
+
+        // convert to indexed array
+        $object_vars = array_keys($object_vars);
+
+        return $object_vars;
+
+    } // __sleep
+
+    // ****************************************************************************
+    function __toString()
+    // this is for use by the error handler
+    {
+        return $this->getErrorString();
+    } // __toString
+
+// ****************************************************************************
+} // end class
+// ****************************************************************************
+
+?>

@@ -1,0 +1,1 @@
+Installation instructions are now contained in file installation.html

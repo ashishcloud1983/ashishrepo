@@ -1,0 +1,185 @@
+<h1>Installation</h1>
+
+<p>The first step is to ensure that you already have a working installation of web server (usually <a href="http://httpd.apache.org/">Apache</a>), database server (usually <a href="http://www.mysql.com/">MySQL</a>, <a href="http://www.postgresql.org/">PostgreSQL</a>, <a href="http://www.oracle.com">Oracle</a> or <a href="http://www.microsoft.com/sqlserver/">SQL Server</a>), and <a href="http://www.php.net/">PHP</a>. Ensure that your PHP installation includes the right optional extensions, as documented in <a href="radicore-for-php.php">Radicore for PHP</a>.</p>
+
+<p>Then and only then will you be able to download and install this software. Here are the steps you should take after obtaining a copy of the RADICORE zip file:</p>
+
+<ol class="expand nested">
+<li>Unzip the file into whatever folder has been designated as [DOCUMENT_ROOT], but remember to retain the directory structure. You should end up with something like this:
+<pre>
+[DOCUMENT_ROOT]
+  - radicore
+    - audit
+    - classroom
+    - css
+    - default
+    - dict
+    - images
+    - includes
+    - logs
+    - menu
+    - product
+    - survey
+    - workflow
+    - xample
+    - xsl
+</pre>
+<p>The structure and usage of the directories in described <a href="http://www.tonymarston.net/php-mysql/menuguide/section05.html">here</a>.</p>
+<p>You may change the name of the parent "radicore" directory if you wish, but do not change any other directory names. You may even move the parent directory to a subdirectory which is below [DOCUMENT_ROOT].</p>
+<p>You may wish to leave the INCLUDES directory where it is, or you may wish to move it to a place which is outside the web root if you are going to deploy this on a publicly-accessible web server. Whatever you decide to do you must amend the "include_path" directive in the HTACCESS.TXT file appropriately (see item 3 below).</p></li>
+
+<li>The file HTACCESS.TXT contains some Apache directives. This can be renamed to .htaccess in a *nix environment, or for Windows you can insert the following lines into your httpd.conf (Apache configuration) file:
+<pre>
+  #AccessFileName .htaccess
+  AccessFileName htaccess.txt
+  #
+  # The following lines prevent .htaccess and .htpasswd 
+  # files from being viewed by Web clients. 
+  #
+  #&lt;Files ~ "^\.ht"&gt;
+  &lt;Files ~ "^htaccess\."&gt;
+      Order allow,deny
+      Deny from all
+  &lt;/Files&gt;
+</pre>
+Note that the contents of .htaccess will be ignored by Apache unless the correct AllowOverride option has been set in your HTTPD.CONF file as follows:
+<pre>
+&lt;Directory "F:/Apache2/htdocs"&gt;
+#
+# AllowOverride controls what directives may be placed in 
+# .htaccess files.
+# It can be "All", "None", or any combination of the keywords:
+#   Options FileInfo AuthConfig Limit
+#
+    AllowOverride All
+#
+# Controls who can get stuff from this server.
+#
+    Order allow,deny
+    Allow from all
+&lt;/Directory&gt;
+</pre>
+</li>
+
+<li>The HTACCESS.TXT file contains an "include_path" directive which is used by PHP when searching for files which are specified on an <code>include()</code> or <code>require()</code> statement. This directive must be modified to reflect the physical location of the following directories:
+	<ul class="compress">
+	<li>radicore/includes (you may move this to a point outside the web root)</li>
+  </ul>
+<p>Note that the contents of the include_path string varies between Windows and *nix systems:</p>
+	<ul class="compress">
+	<li>Windows uses ';' (semi-colon) and '\' (backslash).</li>
+  <li>*nix uses ':' (colon) and '/' (forward slash).</li>
+	</ul>
+<p>The include_path is also amended automatically at runtime to point to various subdirectories used by the framework, such as "menu", "audit" and "workflow".</p>
+</li>
+
+<li>You will need to change <a name="permissions">permissions</a> so that the following directories have write access:
+	<ul class="compress">
+	<li>RADICORE - for the <code>errorlog.html</code> file.</li>
+  <li>CLASSES - for all <code>&lt;table&gt;.class.inc</code> and <code>&lt;table&gt;.dict.inc</code> files.</li>
+	<li>LOGS - for all output from background tasks.</li>
+	<li>SQL - for all <code>&lt;subsystem&gt;.dict_export.sql</code> and <code>&lt;subsystem&gt;.menu_export.sql</code> files.</li>
+	<li>TEXT - for all <code>&lt;subsystem&gt;.menu_export.txt</code> files.</li>
+	<li>XSL - for all <code>&lt;script_id&gt;.xml</code> files.</li>
+  </ul>
+</li>
+
+<li>Using your favourite database administration tool you need to:
+  <ul class="compress">
+  <li>Create each database/schema manually (menu, dict, audit, workflow, classroom, product, survey, xample).</li>
+  <li>Create the tables in those databases/schemas from the <code>???-schema.sql</code> scripts.</li>
+  <li>Load the data from the <code>???-data.sql</code> scripts. Note that there is no data to be pre-loaded into the AUDIT database.</li>
+  </ul>
+These scripts exist in the various <code>radicore/???/sql/mysql/</code> subdirectories.</li>
+
+	<ol type="i">
+	<li>The 'menu' database can be loaded from file <code>radicore/menu/sql/&lt;db&gt;/menu-data.sql</code> which contains the data for all subsystems (except the prototype applications), or single subsystems can be loaded individually from the <code>&lt;subsystem&gt;.menu_export.sql</code> files which exist in the <code>radicore/&lt;subsystem&gt;/sql/</code> directories. These files were created using the Menu Subsystem -&gt; Subsystem -&gt; Export function.</li>
+
+  <li>User details must be loaded separately from file <code>radicore/menu/sql/&lt;db&gt;/mnu-user.sql</code>. This should be loaded only once, unlike the other *sql files which can be loaded as many times as you like.</li>
+
+  <li>The 'dict' database can be loaded from file <code>radicore/dict/sql/&lt;db&gt;/dict-data.sql</code> which contains the data for all databases (except the prototype applications), or single databases can be loaded individually from the <code>&lt;subsystem&gt;.dict_export.sql</code> files which exist in the <code>radicore/&lt;subsystem&gt;/sql/</code> directories. These files were created using the Dictionary -&gt; Database -&gt; Export function.</li>
+
+  <li>The prototype applications which are included in the download (CLASSROOM, PRODUCT, SURVEY and XAMPLE) are contained within files <code>&lt;subsystem&gt;-prototype.zip</code>, and must be unzipped before they can be used. The contents of files <code>&lt;subsystem&gt;/sql/&lt;subsystem&gt;.dict_export.sql</code> and <code>&lt;subsystem&gt;/sql/&lt;subsystem&gt;.menu_export.sql</code> will also need to be loaded into the DICT and MENU databases respectively.</li>
+	</ol>
+
+<p>Note that each <code>&lt;subsystem&gt;-schema.sql</code> script will create tables in a separate database (or 'schema' in PostgreSQL and Oracle) whose name is identified at the start of each script. You MUST select the right database/schema before running these scripts otherwise the software will not be able to access any tables.</p>
+<!--</li>-->
+
+<ol type="A">
+<li><a name="5.A"></a>Notes for <a name="mysql">MySQL</a> users:
+	<ul>
+  <li>The tables used by each subsystem must be created in separate databases, as shown in the various <code>&lt;subsystem&gt;-schema.sql</code> scripts. It is not possible to create all the tables in a single database. After connecting to the MySQL server the application will use the <a href="http://www.php.net/manual/en/function.mysql-select-db.php">mysql_select_db()</a> function to identify the current database.</li>
+	<li>MySQL is case-insensitive by default, but some non-Windows operating systems can reverse this behaviour. In order to avoid any potential problems you should therefore ensure that the <code>lower_case_table_names</code> variable is set to 1. Please refer to <a href="http://dev.mysql.com/doc/refman/5.5/en/identifier-case-sensitivity.html">Identifier Case Sensitivity</a> for details.</li>
+  <li>In order to allow the use of database names with '-' (hyphen) instead of '_' (underscore) you must use the configuration option <code>sql_mode='ANSI_QUOTES'</code> so that database names can be enclosed in double quotes (the SQL standard) as well as backticks (specific to MySQL). Please refer to <a href="http://dev.mysql.com/doc/refman/4.1/en/sql-mode.html">Selecting SQL Modes</a> for details. If your version of MySQL is before 4.1 then you must go info MySQL Administrator->Startup Variables->Advanced and ensure that <code>Use ANSI SQL</code> is checked ON. If your version of MySQL is 4.1 or later this option will be set programmatically.</li>
+  <li>Although with MySQL it is possible to use a mix of different collations (character encoding) on different columns, this is not a good idea in practice as it requires more complex SQL statements when comparing columns with different collations. It is therefore best to use the same character set for all columns, with UTF-8 being the most flexible.</li>
+	</ul>
+</li>
+
+<li><a name="5.B">Notes for <a name="postgresql">PostgreSQL</a> users:
+  <ul>
+    <li>Refer to <a href="http://www.tonymarston.net/php-mysql/postgresql.html">Creating a PostgreSQL Driver</a> to see the differences encountered when using that DBMS.</li>
+    <li>The database name to be used in the 'connect' function is specified in the <code>$PGSQL_dbname</code> variable in the CONFIG.INC file. The suggested database name is 'radicore', but you can change this if you wish.</li>
+    <li>Each MySQL 'database' must be created as a separate PostgreSQL 'schema' within the specified PostgreSQL database. Do NOT create all tables in the PUBLIC schema. After connecting to this database the application uses the <pre>SET search_path TO "&lt;schema&gt;"</pre> directive to identify the current schema.</li>
+  <li>All the <code>???_export.sql</code> scripts were exported from a MySQL database, so will need to be modified before being imported a PostgreSQL database:
+		<ul class="compress">
+		<li>Replace all 'REPLACE INTO ' with 'INSERT INTO '.</li>
+    <li>Replace all '`' (backticks) with '' (null).</li>
+		</ul>
+  </li>
+	<li>In the <code>dict/sql/postgresql/mysqlcompat-vvv</code> directory (where 'vvv' is the version number) is a series of scripts containing collections of functions, aggregates, operators and casts that make PostgreSQL mimic MySQL as closely as possible. Look at the README file for installation instructions.</li>
+  </ul>
+</li>
+
+<li><a name="5.C">Notes for <a name="oracle">Oracle</a> users:
+	<ul>
+	<li>Refer to <a href="http://www.tonymarston.net/php-mysql/oracle.html">Creating an Oracle Driver</a> to see the differences encountered when using that DBMS.</li>
+  <li>The database name to be used in the 'connect' function is specified in the <code>$dbhost</code> variable in the CONFIG.INC file.</li>
+  <li>Each MySQL 'database' must be created as a separate Oracle 'schema' (user) within the specified Oracle database. After connecting to this database the application uses the <pre>ALTER SESSION SET CURRENT_SCHEMA = "&lt;schema&gt;"</pre> directive to identify the current schema.</li>
+  <li>All the <code>???_export.sql</code> scripts were exported from a MySQL database, so will need to be modified before being imported an Oracle database:
+		<ul class="compress">
+		<li>Replace all 'REPLACE INTO ' with 'INSERT INTO '.</li>
+    <li>Replace all '`' (backticks) with '' (null).</li>
+		</ul>
+  </li>
+	</ul>
+</li>
+</ol>
+</li>
+
+<li><a href="#5.A">(moved to 5.A)</a></li>
+<li><a href="#5.B">(moved to 5.B)</a></li>
+<li><a href="#5.C">(moved to 5.C)</a></li>
+
+<li>The contents of the Dictionary and therefore the <a href="http://www.tonymarston.net/php-mysql/data-dictionary.html#table.dict.inc">&lt;tablename&gt;.dict.inc</a> files were created from a MySQL database and consequently use MySQL data types, sizes and value ranges. For example, with the standard <code>SMALLINT (INT2)</code> type the range is -32768 to 32767, but MySQL has an unsigned version where the range is 0 to 65535. Although the application will run on any database using these ranges you may encounter problems should a value passed by the application be rejected by the database, so you may wish to rebuild these files and adjust the ranges with the following steps: 
+	<ul>
+	<li>Run the <a href="http://www.tonymarston.net/php-mysql/menuguide/dict_column(add4)import.html">Import Columns</a> function to update the contents of the data dictionary.</li>
+	<li>Run the <a href="http://www.tonymarston.net/php-mysql/menuguide/dict_table(upd4)export.html">Export Table to PHP</a> function to rebuild individual <a href="http://www.tonymarston.net/php-mysql/data-dictionary.html#table.dict.inc">&lt;tablename&gt;.dict.inc</a> files.</li>
+	</ul>
+</li>
+
+<li>The only file you need to amend should be CONFIG.INC (in the INCLUDES directory) to specify the username and password for your database. You can rename CONFIG.INC.DEFAULT to CONFIG.INC to provide a starting version.
+<p>If you are using MySQL on a shared server you may need to set <code>$GLOBALS['dbprefix']</code> to your account name. If your databases do not have a prefix then this should be set to null.</p>
+<p>If you wish to use the HTTPS protocol with a secure server then please read <a href="http://www.tonymarston.net/php-mysql/infrastructure-faq.html#faq58">FAQ 58</a>.</p>
+<p>If you wish to access different databases on different servers then please read <a href="http://www.tonymarston.net/php-mysql/infrastructure-faq.html#faq92">FAQ 92</a>.</p>
+</li>
+
+<li>Each subsystem may contain a file called <code>include.subsystem.inc</code> which can be used to make global environmental changes during the processing of scripts within that subsystem. Please refer to <a href="http://www.tonymarston.net/php-mysql/infrastructure-faq.html#faq86">FAQ 86</a> for details.</li>
+
+<li><p>To run the application please point your browser to <code>http://localhost/radicore/index.html</code> and use one of the 'logon' hyperlinks. When the logon screen appears you can use the following:</p>
+<pre>
+User = MGR
+Pswd = password (case sensitive)
+</pre>
+You can then explore every part of the system. This may be a good opportunity to create your own user id and password.
+</li>
+</ol>
+
+<p>NOTE: this code will work for both PHP 4 and PHP 5, and (if using a MySQL database) automatically detect if you have loaded the old 'mysql' extension or the new and improved 'mysqli' extension.</p>
+
+<p>As well as the <a href="viewarticle.php?article_id=2">RBAC system</a>, the <a href="viewarticle.php?article_id=1">Menu system</a>, the <a href="viewarticle.php?article_id=4">Audit Logging system</a>, <a href="viewarticle.php?article_id=3">Workflow system</a>, <a href="viewarticle.php?article_id=5">Data Dictionary</a>, <a href="viewarticle.php?article_id=6">Internationalisation</a> facilities and the code for the <a href="viewarticle.php?article_id=8">Transaction Patterns</a>, this software package also includes a few <a href="prototypes.php">prototype applications</a>.</p>
+
+<p>The DEFAULT directory contains the directory structure which is used by the <a href="http://www.tonymarston.net/php-mysql/menuguide/mnu_subsystem(build).html">Build Directory</a> function,  and sample scripts which are used by the <a href="http://www.tonymarston.net/php-mysql/menuguide/dict_table(generate)a.html">Generate PHP scripts</a> function.</p>
+
+<p>By default all XSL transformations are performed by the server, but if you have a web browser that supports XSLT then you can switch to client-side XSL transformations by adding "csxslt=on" to the URL. This will stay on until is is turned off with "csxslt=off".</p>
+
+<p>Enjoy!</p>

@@ -1,0 +1,73 @@
+// file created on November 10, 2017, 5:36 pm
+    
+// menu details for subsystem WORKFLOW
+$array['Case']                                    = 'Case';
+$array['Expired Workitems']                       = 'Expired Workitems';
+$array['Token']                                   = 'Token';
+$array['Workflow']                                = 'Workflow';
+$array['Workitem']                                = 'Workitem';
+
+// navigation button details for subsystem WORKFLOW
+$array['Arcs']                                    = 'Arcs';
+$array['CANCEL']                                  = 'CANCEL';
+$array['Cases']                                   = 'Cases';
+$array['Delete']                                  = 'Delete';
+$array['New']                                     = 'New';
+$array['Places']                                  = 'Places';
+$array['Read']                                    = 'Read';
+$array['REOPEN']                                  = 'REOPEN';
+$array['Search']                                  = 'Search';
+$array['SUSPEND']                                 = 'SUSPEND';
+$array['Tokens']                                  = 'Tokens';
+$array['Transitions']                             = 'Transitions';
+$array['Trigger']                                 = 'Trigger';
+$array['Update']                                  = 'Update';
+$array['Validate']                                = 'Validate';
+$array['WorkItems']                               = 'WorkItems';
+
+// column details for subsystem WORKFLOW
+$array['arc_type']                                = 'arc_type';
+$array['cancelled_date']                          = 'cancelled_date';
+$array['case_id']                                 = 'case_id';
+$array['case_status']                             = 'case_status';
+$array['condition_field']                         = 'condition_field';
+$array['condition_operator']                      = 'condition_operator';
+$array['condition_value']                         = 'condition_value';
+$array['consumed_date']                           = 'consumed_date';
+$array['context']                                 = 'context';
+$array['created_date']                            = 'created_date';
+$array['created_user']                            = 'created_user';
+$array['deadline']                                = 'deadline';
+$array['direction']                               = 'direction';
+$array['enabled_date']                            = 'enabled_date';
+$array['end_date']                                = 'end_date';
+$array['finished_date']                           = 'finished_date';
+$array['is_valid']                                = 'is_valid';
+$array['place_desc']                              = 'place_desc';
+$array['place_id']                                = 'place_id';
+$array['place_name']                              = 'place_name';
+$array['place_type']                              = 'place_type';
+$array['pre_condition']                           = 'pre_condition';
+$array['rdcaccount_id']                           = 'rdcaccount_id';
+$array['revised_date']                            = 'revised_date';
+$array['revised_user']                            = 'revised_user';
+$array['role_id']                                 = 'role_id';
+$array['start_date']                              = 'start_date';
+$array['start_task_id']                           = 'start_task_id';
+$array['task_id']                                 = 'task_id';
+$array['time_limit']                              = 'time_limit';
+$array['token_id']                                = 'token_id';
+$array['token_status']                            = 'token_status';
+$array['transition_desc']                         = 'transition_desc';
+$array['transition_id']                           = 'transition_id';
+$array['transition_name']                         = 'transition_name';
+$array['transition_trigger']                      = 'transition_trigger';
+$array['user_id']                                 = 'user_id';
+$array['workflow_desc']                           = 'workflow_desc';
+$array['workflow_errors']                         = 'workflow_errors';
+$array['workflow_id']                             = 'workflow_id';
+$array['workflow_name']                           = 'workflow_name';
+$array['workitem_id']                             = 'workitem_id';
+$array['workitem_status']                         = 'workitem_status';
+
+// finished

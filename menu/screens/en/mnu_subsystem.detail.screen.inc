@@ -1,0 +1,19 @@
+<?php
+$structure['xsl_file'] = 'std.detail1.xsl';
+
+$structure['tables']['main'] = 'mnu_subsystem';
+
+$structure['main']['columns'][] = array('width' => '20%');
+$structure['main']['columns'][] = array('width' => '*');
+
+$structure['main']['fields'][] = array('subsys_id' => 'ID');
+$structure['main']['fields'][] = array('subsys_name' => 'Name');
+$structure['main']['fields'][] = array('subsys_desc' => 'Description');
+$structure['main']['fields'][] = array('subsys_dir' => 'Directory');
+$structure['main']['fields'][] = array('task_prefix' => 'Task Prefix');
+$structure['main']['fields'][] = array('created_date' => 'Created Date');
+$structure['main']['fields'][] = array('created_user' => 'Created By');
+$structure['main']['fields'][] = array('revised_date' => 'Revised Date');
+$structure['main']['fields'][] = array('revised_user' => 'Revised By');
+
+?>

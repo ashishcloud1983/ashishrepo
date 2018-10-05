@@ -1,0 +1,11310 @@
+<?php
+// *****************************************************************************
+// Copyright 2003-2005 by A J Marston <http://www.tonymarston.net>
+// Copyright 2006-2018 by Radicore Software Limited <http://www.radicore.org>
+// *****************************************************************************
+
+abstract class Default_Table
+{
+    // member variables
+    var $access_count;                  // count of accesses since instantiation
+    var $allow_buttons_all_zones = false;   // call customButton() method for all zones
+    var $allow_db_function = array();   // allow a field's value in a database insert/update to contain a function name
+    var $allow_empty_where = false;     // switch to allow an empty $where string in STD.LIST2.INC
+    var $allow_multiple = false;        // allow multiple records or files
+    var $allow_scrolling = false;       // used inside ADD2 pattern to allow scrolling between selected rows
+    var $allow_zero_rows = false;       // used inside LIST3 pattern to continue if no records were read
+    var $alt_language_table;            // table holding alternative language text
+    var $alt_language_cols;             // columns holding alternative language text
+    var $audit_logging;                 // yes/no switch
+
+    var $checkPrimaryKey = false;       // yes/no switch
+    var $child_relations = array();     // child relationship specifications (optional)
+    var $css_files = array();           // optional CSS file names
+    var $csv;                           // object for CSV processing
+    var $custom_processing_object;      // name of object containing code for custom processing
+    var $custom_replaces_standard = false;  // if set to TRUE in a custom method then the standard method must not be run
+
+    var $dbms_engine = '';              // database engine (mysql, postgresql, oracle, etc)
+    var $dbname = 'unknown';            // database name as recorded in the Data Dictionary
+    var $dbname_server;                 // database name after being switched in the CONFIG.INC file
+    var $dbname_old;                    // refer to _switch_database() method
+    var $dbprefix = '';                 // prefix (for shared servers)
+    var $dirname;                       // directory name of current script
+    var $dirname_dict;                  // directory name where '*.dict.inc' script is located (optional)
+    var $do_retrieve = false;           // may be set in _cm_customButton()
+
+    var $download_filename;             // file to be downloaded
+    var $download_mode;                 // 'inline' or null
+
+    var $delete_count=0;                // count of records deleted
+    var $insert_count=0;                // count of records inserted
+    var $update_count=0;                // count of records updated
+    var $unchange_count=0;              // count of records unchanged
+
+    var $errors = array();              // array of errors
+    var $collapsed;                     // list of tree nodes which have been collapsed
+    var $expanded;                      // list of tree nodes which have been expanded
+    var $fieldarray = array();          // array of row/field data
+    var $fieldspec = array();           // field specifications (see class constructor)
+    var $fields_not_for_trimming = array();     // array of field names which are not to be trimmed
+    var $field_access;                  // see setFieldAccess()
+
+    var $ignore_empty_fields = false;   // YES/NO switch (see getInitialData() method)
+    var $initial_values;                // from MNU_INITIAL_VALUES_USER/ROLE
+    var $initiated_from_controller = false;     // source of object instantiation
+    var $inner_table;                   // used in an outer-link-inner relationship
+    var $instruction;                   // instruction to be passed to previous script
+    var $is_link_table = false;         // used in method _sqlAssembleWhere (many-link-many relationship)
+
+    var $javascript = array();          // optional JavaScript code
+    var $keep_changed_keys = false;     // allow changes to primary/unique keys to be passed to DML object
+    var $lastpage;                      // last available page number in current query
+    var $link_item;                     // used in _sqlAssembleWhere() in many-to-many relationships
+    var $lookup_data = array();         // array of lookup data (for dropdowns, radio groups)
+    var $lookup_css = array();          // optional css classes for $lookup_data
+    var $messages = array();            // array of messages
+
+    // by default if the database cannot acquire a lock it will abort, but this behaviour can be changed
+    var $lock_wait_count = 0;           // count of lock wait failures
+    var $no_abort_on_lock_wait = false; // sent to database engine (true = don't abort, allow retries)
+
+    var $nameof_end_date;               // alias for 'end_date'
+    var $nameof_start_date;             // alias for 'start_date'
+    var $noedit_array;                  // array of fields which cannot be updated
+    var $no_controller_msg = false;     // prevent page controller from creating a message concerning this object
+    var $no_convert_timezone = false;   // turn off all timezone conversions
+    var $no_csv_header = false;         // turns off creation of header row in CSV output file
+    var $no_display_count = false;      // yes/no switch to display count after multiple inserts or updates
+    var $no_duplicate_error = false;    // if TRUE do not create an error when inserting a duplicate
+    var $no_filter_where = array();     // array of fields NOT to be filtered from $where (see filter_where)
+    var $no_foreign_data = false;       // if TRUE do not call getForeignData() method
+    var $no_submit_on_error = false;    // if TRUE drop any SUBMIT buttons after a validation error
+    var $numrows;                       // number of rows retrieved
+
+    var $outer_table;                   // used in an outer-link-inner relationship
+    var $pageno;                        // requested page number
+    var $prev_pageno;                   // previous page number
+    var $parent_relations = array();    // parent relationship specifications (optional)
+
+    var $parent_object;                 // reference to parent object (if there is one in current task)
+    var $child_object;                  // reference to child object  (if there is one in current task)
+
+    var $pdf;                           // object for PDF processing
+    var $pdf_filename;                  //
+    var $pdf_destination;               // I=Inline (browser), D=Download (browser), F=Filename (on server), S=String
+
+    var $picker_subdir;                 // subdirectory for the File Picker
+    var $picker_filetypes = array();    // array of file types
+
+    var $primary_key = array();         // column(s) which form the primary key
+    var $report_structure;              // report structure
+    var $resize_array;                  // used in file uploads
+    var $restart_url;                   // restart task with this URL
+    var $retry_on_duplicate_key;        // field name to be incremented when insert fails
+    var $reuse_previous_select = true;  // reuse previous SELECT in _dml_ReadBeforeUpdate()
+    var $rows_per_page = 0;             // page size for multi-row forms
+    var $skip_offset = 0;               // used when _cm_post_getData method drops any rows
+    var $row_locks;                     // FALSE, SH=shared, EX=exclusive
+    var $row_locks_supp;                // supplemental lock type
+    var $row_offset;                    // identifies current row in a multi-row display
+
+    var $scrollarray;                   // array for internal scrolling
+    var $scrollindex;                   // index to current item in scrollarray
+    var $select_string;                 // identifies which entries have been selected
+    var $skip_getdata = false;          // YES/NO switch
+    var $skip_validation = false;       // YES/NO switch
+
+    var $tablename = 'unknown';         // table name (internal)
+    var $table_id_alias;                // table alias (used in blockchain extract)
+    var $transaction_level;             // transaction level
+
+    var $unbuffered_query = false;      // used in getData_serial()
+    var $unique_keys = array();         // unique key specifications (optional)
+    var $update_on_duplicate_key=false; // switch to 'update' if insert fails
+
+    var $upload_subdir;                 // subdirectory for file upoads
+    var $upload_filetypes = array();    // file types for uploading
+    var $upload_maxfilesize;            // max file size for uploading
+    var $upload_blacklist = array();    // prohibited file types
+
+    var $wf_case_id;                    // workflow case id
+    var $wf_context;                    // workitem context
+    var $wf_workitem_id;                // workflow workitem id
+    var $wf_user_id;                    // update workitem with this value, not $_SESSION['logon_user_id']
+
+    var $xsl_params = array();          // optional parameters to be passed to XSL transformation
+
+    var $zone;                          // set by page controller - main/outer/middle/inner
+
+    // the following are used to construct SQL queries
+    var $default_orderby = null;        // default for table, may be overridden by $sql_orderby
+    var $default_orderby_task = null;   // default for task, may be overridden by $sql_orderby
+    var $sql_from;
+    var $sql_groupby;
+    var $sql_groupby_orig;              // original GROUP BY setting
+    var $sql_having;
+    var $sql_no_foreign_db = false;     // if TRUE _sqlProcessJoin() method will skip tables in other databases
+    var $sql_orderby;                   // sort field
+    var $prev_sql_orderby;              // previous sort field
+    var $sql_orderby_seq;               // 'asc' or 'desc'
+    var $sql_orderby_table;             // tablename qualifier for optional sort criteria
+    var $sql_search;                    // optional search criteria from a search screen (modifiable)
+    var $sql_search_orig;               // original search criteria (unmodified)
+    var $sql_search_table;              // tablename qualifier for optional search criteria
+    var $sql_select;                    // fields to be selected
+    var $drop_from_sql_select=array();  // used in _sqlAssembleWhere for SQL Server
+    var $sql_selection;                 // selection passed down from previous task
+    var $sql_union;                     // optional UNION clause
+    var $sql_where;                     // additional selection criteria
+    var $sql_where_append;              // string which is too complex for wher2array() function,so will be appended manually
+    var $where;                         // passed from parent form
+
+    // these are used in Common Table Expressions (CTE)
+    var $CTE_in_use = false;            // see fetchRowChild() for details
+    var $sql_CTE_name;                  // CTE name
+    var $sql_CTE_select;                // CTE 'select columns'
+    var $sql_CTE_anchor;                // CTE anchor expression
+    var $sql_CTE_recursive;             // CTE recursive expression
+
+    // ****************************************************************************
+    // there is no constructor in an abstract class
+    // ****************************************************************************
+
+    // ****************************************************************************
+    function appendToCSV ($header)
+    // append more rows to the CSV output.
+    {
+        $rows = array();
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_appendToCSV')) {
+                $rows = $this->custom_processing_object->_cm_appendToCSV($header, $rows);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $rows = $this->_cm_appendToCSV($header, $rows);
+        } // if
+
+        return $rows;
+
+    } // appendToCSV
+
+    // ****************************************************************************
+    function array2string ($array)
+    // return an array of values (for a SET/ARRAY/VARRAY datatype) as a string.
+    // NOTE: the format of the string is dependent upon the DBMS.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        if (is_string($array)) {
+            return $array;
+        } // if
+
+        $string = $DML->array2string($array);
+
+        return $string;
+
+    } // array2string
+
+    // ****************************************************************************
+    function blockchain_receive ($fieldarray)
+    // perform any adjustments when data is received via blockchain
+    {
+        // transaction currency will be converted into home currency
+        $fieldarray['rdc_convert_from_tx_currency'] = true;
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_blockchain_receive')) {
+                $fieldarray = $this->custom_processing_object->_cm_blockchain_receive($fieldarray);
+            } // if
+        } // if
+        if (empty($this->errors)) {
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_blockchain_receive($fieldarray);
+            } // if
+        } // if
+
+        return $fieldarray;
+
+    } // blockchain_receive
+
+    // ****************************************************************************
+    function blockchain_send ($fieldarray)
+    // perform any adjustments before data is sent out via blockchain
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_blockchain_send')) {
+                $fieldarray = $this->custom_processing_object->_cm_blockchain_send($fieldarray);
+            } // if
+        } // if
+        if (empty($this->errors)) {
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_blockchain_send($fieldarray);
+            } // if
+        } // if
+
+        return $fieldarray;
+
+    } // blockchain_send
+
+    // ****************************************************************************
+    function cascadeDelete ($where, $parent_table=null)
+    // Parent record is being deleted, so remove associated records from this table.
+    {
+        $errors = array();
+        $this->delete_count = null;
+
+        // retrieve all records which match criteria in $where
+        $fieldarray = $this->getData_raw($where);
+        $errors = array_merge($errors, $this->errors);
+
+        // now delete them one at a time
+        $count = 0;
+        foreach ($fieldarray as $rowdata) {
+            $rowdata['rdc_no_rollup'] = true;  // do not cause delete of child to update the parent in a callback
+            $rowdata = $this->_cm_pre_cascadeDelete($rowdata);
+            $rowdata = $this->deleteRecord($rowdata, $parent_table);
+            if (!empty($this->errors)) {
+                foreach ($this->errors as $error) {
+                    $errors[] = "$this->tablename - $error";
+                } // foreach
+                break;
+            } // if
+            $count++;
+        } // foreach
+        unset($fieldarray);
+
+        if (count($errors) > 0) {
+            $this->errors = $errors;
+            return false;
+        } // if
+
+        // save count so that values may be accumulated
+        if (!is_array($this->delete_count)) {
+            $this->delete_count = array();
+        } // if
+
+        $this->delete_count[strtoupper($this->tablename)] = $count;
+
+        // $count rows were deleted
+        return $this->getLanguageText('sys0004', $count, strtoupper($this->tablename));
+
+    } // cascadeDelete
+
+    // ****************************************************************************
+    function cascadeNullify ($update_array, $where)
+    // Parent record is being deleted, so nullify foreign keys in associated records in this table.
+    {
+        $errors = array();
+
+        // retrieve all records which match criteria in $where
+        $fieldarray = $this->getData_raw($where);
+        $errors = array_merge($errors, $this->errors);
+
+        // now update them one at a time
+        foreach ($fieldarray as $rowdata) {
+            $rowdata = array_merge($rowdata, $update_array);
+            $rowdata = $this->updateRecord($rowdata);
+            if ($rowdata === false AND $this->lock_wait_count > 0) {
+                return false;  // failed to lock database, so allow a retry
+            } // if
+            foreach ($this->errors as $error) {
+                $errors[] = "$this->tablename - $error";
+            } // foreach
+        } // foreach
+
+        if (count($errors) > 0) {
+            $this->errors = $errors;
+            return false;
+        } // if
+
+        return true;
+
+    } // cascadeNullify
+
+    // ****************************************************************************
+    function changeActionButtons ($act_buttons)
+    // allow action buttons to be modified.
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_changeActionButtons')) {
+                // perform method in project-specific object
+                $act_buttons = $this->custom_processing_object->_cm_changeActionButtons($act_buttons);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else{
+            // perform method in standard object
+            $act_buttons = $this->_cm_changeActionButtons($act_buttons);
+        } // if
+
+        return $act_buttons;
+
+    } // changeActionButtons
+
+    // ****************************************************************************
+    function changeConfig ($where, $fieldarray)
+    // check to see if any configuration settings need to be changed.
+    {
+        //$where = null;
+
+        if (!empty($_SESSION['script_sequence'])) {
+            $first_entry =& $_SESSION['script_sequence'][0];
+            if ($first_entry['task_id'] == $GLOBALS['task_id']) {
+                // the first task is the current task, so ...
+                if (isset($first_entry['action']) AND $first_entry['action'] == 'OK') {
+                    // cannot use the CANCEL button, so remove it
+                    unset($GLOBALS['act_buttons']['quit']);
+                } // if
+            } // if
+        } // if
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_changeConfig')) {
+                $fieldarray = $this->custom_processing_object->_cm_changeConfig($where, $fieldarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else{
+            // change current table configuration (optional)
+            $fieldarray = $this->_cm_changeConfig($where, $fieldarray);
+        } // if
+
+        return $fieldarray;
+
+    } // changeConfig
+
+    // ****************************************************************************
+    function checkAccountId ($where, $user_account_id)
+    // a child record is being either added, modified or deleted, so check that the
+    // user's account_id is valid for the account_id on the parent record.
+    // $where is a string which should identify the primary key of the parent record.
+    {
+        if (!isset($this->fieldspec['rdcaccount_id'])) {
+            return false;  // field does not exist in this table, so quit now
+        } // if
+
+        $where_array = where2array($where);
+        // remove any field names which do not belong in this table
+        $where_array = array_reduce_to_named_list($where_array, $this->fieldspec);
+        // convert array of names and values to just names
+        $keys = array_keys($where_array);
+        if (!in_array('rdcaccount_id', $keys)) {
+            $keys[] = 'rdcaccount_id';
+        } // if
+
+        $this->sql_select = implode(",", $keys);  // select key fields only
+        $this->sql_from   = $this->tablename;
+
+        $checkPrimaryKey  = $this->checkPrimaryKey;  // save current value
+        $this->checkPrimaryKey = true;
+        $data = $this->getData($where);
+        $this->checkPrimaryKey = $checkPrimaryKey;   // restore original value
+        if (empty($data)) {
+            // "No record was found with this identity"
+            $this->errors[] = getLanguageText('sys0199');
+            return false;
+        } else {
+            $data = $data[0];
+            if ($data['rdcaccount_id'] == 1) {
+                // the shared account is valid
+            } elseif ($data['rdcaccount_id'] != $user_account_id) {
+                // "Record belongs to a non-shared account, so can only be modified by a user in the same account"
+                $this->errors[] = getLanguageText('sys0235');
+                return false;
+            } // if
+        } // if
+
+        $this->sqlSelectInit();  // clear out this last query
+
+        return true;
+
+    } // checkAccountId
+
+    // ****************************************************************************
+    function checkMessageDirectory ()
+    // check if current directory is correct when retrieving messages for the currect class.
+    {
+        if (getcwd() == dirname($this->dirname)) {
+            // current directory is correct
+            unset($GLOBALS['classdir']);
+        } else {
+            // switch to correct directory for retrieving message text
+            if (!preg_match('/\bcustom-processing\b/i', $this->dirname)) {
+                // this script is not in a custom processing directory
+                $GLOBALS['classdir'] = dirname($this->dirname);
+            } elseif (!empty($this->dirname_dict)) {
+                $GLOBALS['classdir'] = dirname($this->dirname_dict);
+            } else {
+                unset($GLOBALS['classdir']);
+            } //
+        } // if
+
+    } // checkMessageDirectory
+
+    // ****************************************************************************
+    function checkWorkflow ($where)
+    // check workflow system to see if this task is a pending workitem.
+    {
+        $this->errors = array();
+
+        if (preg_match('/^(workflow|audit)$/i', $this->dbname) OR defined('TRANSIX_NO_WORKFLOW') OR defined('RADICORE_NO_WORKFLOW')) {
+            // do nothing
+        } else {
+            // find out if this task/context is a workitem within a workflow instance
+            $this->_examineWorkflowInstance($where);
+        } // if
+
+        return $this->errors;
+
+    } // checkWorkflow
+
+    // ****************************************************************************
+    function clearEditableData ($fieldarray)
+    // initialise all editable fields in $fieldarray.
+    {
+        $fieldspec = $this->fieldspec;
+
+        foreach ($fieldarray as $field => $value) {
+            if (array_key_exists($field, $fieldspec)) {
+                if ($field == 'curr_or_hist') {
+                    // reset to 'current' dates (the default)
+                    $fieldarray[$field] = 'C';
+                } elseif (array_key_exists('noedit', $fieldspec[$field])) {
+                    // field is not editable, so leave it alone
+                } elseif (array_key_exists('noclear', $fieldspec[$field])) {
+                    // field is not to be cleared, so leave it alone
+                } else {
+                    // field is editable, so remove current value
+                    $fieldarray[$field] = NULL;
+                } // if
+            } else {
+                $fieldarray[$field] = NULL;
+            } // if
+        } // foreach
+
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // clearEditableData
+
+    // ****************************************************************************
+    function clearScrollArray ()
+    // initialise the internal $scrollarray.
+    {
+        $this->scrollarray = array();
+
+        $this->scrollindex = 0;
+        $this->pageno      = 0;
+        $this->prev_pageno = 0;
+        $this->numrows     = 0;
+        $this->lastpage    = 0;
+
+        return;
+
+    } // clearScrollArray
+
+    // ****************************************************************************
+    function commit ($update_workflow=true, $update_script_vars=true)
+    // commit this transaction
+    {
+        $errors = array();
+
+        $this->sql_union = null;
+
+        if (!is_True($update_workflow) OR defined('TRANSIX_NO_WORKFLOW') OR defined('RADICORE_NO_WORKFLOW')) {
+            $condition = true;  // workflow not enabled, so do nothing
+        } else {
+            if (preg_match('/^(workflow|audit)$/i', $this->dbname)) {
+                $condition = true;  // no workflows allowed on this database
+            } elseif (array_key_exists('rdc_has_errors', $this->fieldarray)) {
+                $condition = true;  // update failed, so do nothing
+            } else {
+                // if this task+context is a pending workitem then update it
+                $errors = $this->_examineWorkflow($this->fieldarray);
+            } // if
+        } // if
+
+        $DML =& $this->_getDBMSengine($this->dbname);
+        if ($errors) {
+            $result = $DML->rollback($this->dbname_server);
+        } else {
+            if ($result = $DML->commit($this->dbname_server)) {
+                $DML->lock_wait_count = 0;  // reset count of lock wait failures
+                if (is_True($update_script_vars)) {
+                    // update has been committed, so remove any 'run_at_cancel' reference
+                    if ($this->initiated_from_controller) {
+                        if (isset($GLOBALS['script_vars']['task_id_run_at_cancel'])) {
+                            unset($GLOBALS['script_vars']['task_id_run_at_cancel']);
+                            unset($GLOBALS['script_vars']['task_id_run_at_cancel_context']);
+                        } // if
+                        $script_vars = updateScriptVars($GLOBALS['script_vars']);
+                    } // if
+                } // if
+                if (!empty($GLOBALS['blockchain_data'])) {
+                    $result = $this->_fireBlockchainTrigger($GLOBALS['blockchain_data']);
+                    if (is_array($result)) {
+                        $errors = array_merge($errors, $result);
+                    } // if
+                } // if
+            } else {
+                $errors[] = $this->getLanguageText('sys0009'); // 'Commit failed'
+            } // if
+        } // if
+
+        $GLOBALS['transaction_has_started'] = FALSE;
+        $GLOBALS['blockchain_data']         = null;
+
+        return $errors;
+
+    } // commit
+
+    // ****************************************************************************
+    function convertTimeZone ($fieldarray, $fieldspec)
+    // convert any datetime fields from client timezone to server timezone.
+    {
+        if (isset($_SESSION['display_timezone_party']) AND is_True($_SESSION['display_timezone_party'])) {
+            if (!empty($fieldarray['party_timezone'])) {
+                $timezone_client = $fieldarray['party_timezone'];    // timezone of data's party
+            } else {
+                $timezone_client = $_SESSION['timezone_client'];     // timezone of logon user
+            } // if
+        } else {
+            $timezone_client = $_SESSION['timezone_client'];    // timezone of logon user
+        } // if
+
+        if (empty($_SESSION['timezone_server']) OR empty($timezone_client)) {
+            return $fieldarray;  // nothing to do
+        } // if
+
+        $dateobj = RDCsingleton::getInstance('date_class');
+
+        foreach ($fieldspec as $field => $spec) {
+            if (!empty($fieldarray[$field])) {
+                if (preg_match('/^(datetime|timestamp)$/i', $spec['type'])) {
+                    if (!isset($spec['noedit']) AND !isset($spec['nodisplay'])) {
+                        try {
+                            $datetime = $dateobj->getInternalDateTime($fieldarray[$field], $spec);
+                            $fieldarray[$field] = convertTZ($datetime,
+                                                            $timezone_client,
+                                                            $_SESSION['timezone_server']);
+                        } catch (Exception $e) {
+                            $this->errors[$field] = $e->getMessage();
+                        } // try
+                    } // if
+                } elseif (preg_match('/^(date)$/i', $spec['type'])) {
+                    if (!isset($spec['noedit']) AND !isset($spec['nodisplay'])) {
+                        try {
+                            $date = $dateobj->getInternalDate($fieldarray[$field]);
+                            $fieldarray[$field] = convertTZdate($date,
+                                                                '12:00:00',
+                                                                $timezone_client,
+                                                                $_SESSION['timezone_server']);
+                        } catch (Exception $e) {
+                            $this->errors[$field] = $e->getMessage();
+                        } // try
+                    } // if
+                } // if
+            } // if
+        } // foreach
+
+        return $fieldarray;
+
+    } // convertTimeZone
+
+    // ****************************************************************************
+    function currency_flip ($fieldarray, $columns)
+    // flip values between functional currency and transaction currency
+    {
+        $object = RDCsingleton::getInstance('currency_class');
+
+        $object->func_currency = $this->home_currency;
+        $object->tran_currency = $fieldarray['currency_code'];
+
+        if (!empty($object->tran_currency) AND !empty($fieldarray['exchange_rate'])) {
+            $object->exchange_rate = $fieldarray['exchange_rate'];
+        } else {
+            $object->exchange_rate = 1;
+        } // if
+
+        $scales = $this->set_column_scale($columns);
+
+        $fieldarray = $object->flip_currency($fieldarray, $columns, $scales);
+
+        //if (is_True($_SESSION['display_foreign_currency'])) {
+        //    $this->messages[] = getLanguageText('sys0248');  // values displayed in HOME currency
+        //} else {
+        //    $this->messages[] = getLanguageText('sys0247');  // values displayed in TRANSACTION currency
+        //} // if
+
+        return $fieldarray;
+
+    } // currency_flip
+
+    // ****************************************************************************
+    function currentOrHistoric ($input, $start_date='start_date', $end_date='end_date')
+    // convert the string 'current/historic/future' into a date range.
+    // NOTE: defaults to fields named START_DATE and END_DATE, but this may be changed.
+    {
+        if (is_array($input)) {
+            $search_array = $input;
+        } else {
+            // convert search string into an indexed array
+            $search_array = where2array($input, false, false);
+        } // if
+
+        if (!isset($search_array['curr_or_hist'])) {
+            return $input;  // nothing to do, so return $input unchanged
+        } // if
+
+        $curr_or_hist = strtoupper(stripOperators($search_array['curr_or_hist']));
+        unset($search_array['curr_or_hist']);
+        $output = array2where($search_array);  // remove 'curr_or_hist' from output
+
+        if (empty($start_date)) {
+            $start_date = 'start_date';
+        } // if
+        if (empty($end_date)) {
+            $end_date = 'end_date';
+        } // if
+
+        if (!array_key_exists($start_date, $this->fieldspec) ) {
+            return $output;  // field does not exist in this table, so ignore this
+        } elseif (!empty($this->fieldspec[$start_date]['nondb'])) {
+            return $output;  // field is specified as non-database, so ignore this
+        } // if
+        if (!array_key_exists($end_date, $this->fieldspec)) {
+            return $output;  // field does not exist in this table, so ignore this
+        } elseif (!empty($this->fieldspec[$end_date]['nondb'])) {
+            return $output;  // field is specified as non-database, so ignore this
+        } // if
+
+        $today = getTimeStamp('date');
+
+        // insert modified search criteria
+        switch ($curr_or_hist) {
+            case 'C':
+                // search for records with CURRENT dates
+                $search_array[$start_date] = "<='$today 23:59:59'";
+                $search_array[$end_date]   = ">='$today 00:00:00'";
+                break;
+            case 'H':
+                // search for records with HISTORIC dates
+                $search_array[$end_date] = "<'$today 00:00:00'";
+                break;
+            case 'F':
+                // search for records with FUTURE dates
+                $search_array[$start_date] = ">'$today 23:59:59'";
+            default:
+                ;
+        } // switch
+
+        $output = array2where($search_array);
+
+        return $output;
+
+    } // currentOrHistoric
+
+    // ****************************************************************************
+    function customButton ($fieldarray, $button, $postarray, $row=null)
+    // user pressed a custom button.
+    {
+        if ($this->errors) {
+            return $this->getFieldArray();  // object has unresolved errors, so do nothing
+        } // if
+
+        $pattern_id = getPatternId();
+
+        // filter out any data which does not belong in this table
+        $postarray = getPostArray($postarray, $this->fieldspec);
+
+        if (!is_long(key($fieldarray))) {
+            $fieldarray = array($fieldarray);  // ensure it is indexed by row
+        } // if
+
+        $this->do_retrieve = false;  // may be set in _cm_customButton()
+
+        if ($this->rows_per_page == 1) {
+            // this is the only row
+            $row = 0;
+            $fieldarray = array_update_associative($fieldarray[$row], $postarray, $this->fieldspec);
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_customButton')) {
+                    $output = $this->custom_processing_object->_cm_customButton($fieldarray, $button);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $output = $this->_cm_customButton($fieldarray, $button);
+            } // if
+        } else {
+            // this is one of many rows
+            if (empty($row)) $row=1;  // default
+            $row = $row-1;  // screen rows start at #1 while database rows start at zero
+            if (array_key_exists($row, $fieldarray)) {
+                $fieldarray  = array_update_indexed($fieldarray, $postarray, $this->fieldspec);
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_customButton')) {
+                        $output = $this->custom_processing_object->_cm_customButton($fieldarray[$row], $button);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $output = $this->_cm_customButton($fieldarray[$row], $button);
+                } // if
+            } // if
+        } // if
+
+        reset($output);
+        if (is_long(key($output))) {
+            // output is indexed, so replace entire array
+            $this->fieldarray = $output;
+        } else {
+            // output is associative, so replace single row
+            if ($this->rows_per_page == 1) {
+                $this->fieldarray = array($row => $output);
+            } else {
+                $this->fieldarray[$row] = $output;
+            } // if
+        } // if
+
+        // see if any additional data is required or needs to be changed
+        $this->fieldarray = $this->getExtraData($this->fieldarray);
+
+        if (count($this->fieldarray) == 1) {
+            if (empty($this->fieldarray[key($this->fieldarray)])) {
+                $this->fieldarray = array();  // contains a single empty element, so clear it out
+            } // if
+        } // if
+
+        return $this->getFieldArray();
+
+    } // customButton
+
+    // ****************************************************************************
+    function custom_commonValidation ($fieldarray, $originaldata=null)
+    // perform any validation which is common to both INSERT and UPDATE.
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_commonValidation')) {
+                $fieldarray = $this->custom_processing_object->_cm_commonValidation($fieldarray, $originaldata);
+            } // if
+        } // if
+        if (empty($this->errors)) {
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_commonValidation($fieldarray, $originaldata);
+            } // if
+        } // if
+
+        return $fieldarray;
+
+    } // custom_commonValidation
+
+    // ****************************************************************************
+    function custom_pre_getData ($where, $where_array, $parent_data)
+    // perform any custom pre-retrieve processing
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_pre_getData')) {
+                $where = $this->custom_processing_object->_cm_pre_getData($where, $where_array, $parent_data);
+            } // if
+        } // if
+        if (empty($this->errors)) {
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $where = $this->_cm_pre_getData($where, $where_array, $parent_data);
+            } // if
+        } // if
+
+        return $where;
+
+    } // custom_pre_getData
+
+    // ****************************************************************************
+    function custom_validateInsert($fieldarray)
+    // perform any custom pre-INSERT validation
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_validateInsert')) {
+                $fieldarray = $this->custom_processing_object->_cm_validateInsert($fieldarray);
+            } // if
+        } // if
+        if (empty($this->errors)) {
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_validateInsert($fieldarray);
+            } // if
+        } // if
+
+        return $fieldarray;
+
+    } // custom_validateInsert
+
+    // ****************************************************************************
+    function custom_validateUpdate($fieldarray, $originaldata)
+    // perform any custom pre-UPDATE validation
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_validateUpdate')) {
+                $fieldarray = $this->custom_processing_object->_cm_validateUpdate($fieldarray, $originaldata);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_validateUpdate($fieldarray, $originaldata);
+        } // if
+
+        return $fieldarray;
+
+    } // custom_validateUpdate
+
+    // ****************************************************************************
+    function deleteMultiple ($fieldarray)
+    // delete multiple records using data in $fieldarray.
+    {
+        $errors = array();
+        $this->no_display_count = false;
+        $count                  = 0;
+
+        if (isset($GLOBALS['batch']) AND is_True($GLOBALS['batch'])) {
+            // check to see if this task is a pending workitem
+            $errors = $this->checkWorkflow($fieldarray[0]);
+            if ($errors) {
+                return $fieldarray;
+            } // if
+        } // if
+
+        if (empty($this->errors)) {
+            // perform any additional custom pre-processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_pre_deleteMultiple')) {
+                    $fieldarray = $this->custom_processing_object->_cm_pre_deleteMultiple($fieldarray);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_pre_deleteMultiple($fieldarray);
+            } // if
+        } // if
+
+        if (!$this->errors) {
+            // delete each row one by one
+            foreach ($fieldarray as $rownum => $row) {
+                $row = $this->deleteRecord($row);
+                if (!empty($this->errors)) {
+                    // accumulate all errors
+                    //$errors = array_merge($errors, $this->errors);
+                    $errors[$rownum] = $this->errors;
+                } else {
+                    $count = $count + $this->numrows;
+                } // if
+            } // foreach
+
+            if (empty($this->errors)) {
+                // perform any additional custom post-processing
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_post_deleteMultiple')) {
+                        $fieldarray = $this->custom_processing_object->_cm_post_deleteMultiple($fieldarray);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $fieldarray = $this->_cm_post_deleteMultiple($fieldarray);
+                } // if
+            } // if
+
+        } // if
+
+        if (is_True($this->no_display_count)) {
+            // do not display record count
+        } else {
+            // '$count records were deleted from $tablename'
+            $this->messages[] = $this->getLanguageText('sys0004', $count, strtoupper($this->tablename));
+        } // if
+
+        $this->errors  = $errors;
+        $this->numrows = $count;
+
+        return $fieldarray;
+
+    } // deleteMultiple
+
+    // ****************************************************************************
+    function deleteRecord ($fieldarray, $parent_table=null)
+    // delete the record specified in $fieldarray.
+    // ($parent_table is only used in a cascade delete)
+    {
+        $this->errors = array();   // initialise
+
+        if (empty($fieldarray)) {
+            return $fieldarray;    // nothing to delete
+        } // if
+
+        if (is_string($fieldarray)) {
+            // convert from string to array
+            $fieldarray = where2array($fieldarray);
+        } // if
+
+        // shift all field names to lower case
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        if (empty($this->errors)) {
+            // perform any custom pre-delete processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_pre_deleteRecord')) {
+                    $fieldarray = $this->custom_processing_object->_cm_pre_deleteRecord($fieldarray);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_pre_deleteRecord($fieldarray);
+            } // if
+        } // if
+
+        if (!$this->skip_getdata) {
+            // check that full primary key (or candidate key) has been supplied
+            list($where, $errors) = isPkeyComplete($fieldarray, $this->getPkeyNames(), $this->unique_keys);
+            if (!empty($errors)) {
+                $this->errors = $errors;
+            } // if
+
+            if (empty($this->errors)) {
+                // obtain copy of original record from database
+                $where = array2where($fieldarray, $this->getPkeyNames(), $this);
+                $originaldata = $this->_dml_ReadBeforeUpdate($where, $this->reuse_previous_select);
+                if ($originaldata === false AND $this->lock_wait_count > 0) {
+                    return false;  // failed to lock database, so allow a retry
+                } // if
+                $this->reuse_previous_select = true;
+                if ($this->numrows == 0) {
+                    return $fieldarray;  // there is nothing to delete
+                } elseif ($this->numrows == 1) {
+                    // use only 1st row in $originaldata
+                    $originaldata = $originaldata[0];
+                    // insert non-key values for inclusion in audit log
+                    $fieldarray = array_merge($fieldarray, $originaldata);
+                    if (!empty($this->unique_keys)) {
+                        // rebuild $where from pkey in case candidate key was used
+                        $where = array2where($fieldarray, $this->getPkeyNames(), $this);
+                    } // if
+                } else {
+                    // more than 1 record found - key is not unique
+                    $this->errors[] = $this->getLanguageText('sys0113');
+                } // if
+            } // if
+        } else {
+            if (!empty($fieldarray)) {
+                $this->numrows = 1;
+            } // if
+        } // if
+
+        if (!empty($fieldarray)) {
+            // check that this record can be deleted
+            $numrows = $this->numrows;
+            if (empty($this->errors)) {
+                $fieldarray = $this->validateDelete($fieldarray, $parent_table);
+            } // if
+
+            if (empty($this->errors)) {
+                // delete any tables related to the specified record
+                $this->deleteRelations($fieldarray);
+            } // if
+
+            $this->numrows = $numrows;
+            if (empty($this->errors) AND $this->numrows > 0) {
+                // delete the specified record
+                $this->_dml_deleteRecord($fieldarray);
+            } // if
+        } // if
+
+        if (empty($this->errors)) {
+            // perform any custom post-delete processing
+            $fieldarray['rdc_to_be_deleted'] = true;  // this disables certain processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_post_deleteRecord')) {
+                    $fieldarray = $this->custom_processing_object->_cm_post_deleteRecord($fieldarray);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_post_deleteRecord($fieldarray);
+            } // if
+        } // if
+
+        if (empty($this->errors)) {
+            $GLOBALS['blockchain_data'] = $this->_checkBlockchainTrigger($GLOBALS['blockchain_data'],
+                                                                         __FUNCTION__,
+                                                                         $fieldarray);
+        } // if
+
+        return $fieldarray;
+
+    } // deleteRecord
+
+    // ****************************************************************************
+    function deleteRelations ($fieldarray)
+    // delete any child records whch are linked to the current record.
+    {
+        $this->errors = array();
+
+        if (empty($this->child_relations)) {
+            return;
+        } // if
+
+        // process contents of $child_relations array
+        foreach ($this->child_relations as $reldata) {
+            $tblchild = $reldata['child'];
+            switch (strtoupper($reldata['type'])) {
+                case 'NULLIFY':
+                case 'NUL':
+                    // set foreign key(s) to null
+                    $where = NULL;
+                    $update_array = array();
+                    foreach ($reldata['fields'] as $fldparent => $fldchild) {
+                        //if (strlen($fldchild) < 1) {
+                        //    // 'Name of child field missing in relationship with $tblchild'
+                        //    $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild));
+                        //    break;
+                        //} // if
+                        if (!empty($fldchild)) {
+                            if (empty($where)) {
+                                $where = "$fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } else {
+                                $where .= " AND $fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } // if
+                        } // if
+                        $update_array[$fldchild] = NULL;
+                    } // foreach
+
+                    if (empty($where)) {
+                        // 'Name of child field missing in relationship with $tblchild'
+                        $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild));
+                        break;
+                    } else {
+                        // instantiate an object for this table
+                        if (array_key_exists('subsys_dir', $reldata)) {
+                            $childobject = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$tblchild);
+                        } else {
+                            $childobject = RDCsingleton::getInstance($tblchild);
+                        } // if
+                        if (!empty($this->dbname_old) AND $this->dbname_old == $childobject->dbname) {
+                            // name of parent database has been switched, so switch the child name as well
+                            $childobject->dbname_old = $childobject->dbname;
+                            $childobject->dbname     = $this->dbname;
+                        } // if
+                        $childobject->audit_logging     = $this->audit_logging;
+                        $childobject->sql_no_foreign_db = $this->sql_no_foreign_db;
+                        // now use this object to delete child records
+                        if (!$childobject->cascadeNullify($update_array, $where)) {
+                            $this->errors = array_merge($childobject->getErrors(), $this->errors);
+                        } // if
+                        unset($childobject);
+                    } // if
+                    break;
+
+                case 'DELETE';
+                case 'DEL':
+                case 'CASCADE':
+                case 'CAS':
+                    // delete all related rows
+                    $where = NULL;
+                    foreach ($reldata['fields'] as $fldparent => $fldchild) {
+                        //if (strlen($fldchild) < 1) {
+                        //    // 'Name of child field missing in relationship with $tblchild'
+                        //    $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild));
+                        //    break;
+                        //} // if
+                        if (!empty($fldchild)) {
+                            if (empty($where)) {
+                                $where = "$fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } else {
+                                $where .= " AND $fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } // if
+                        } // if
+                    } // foreach
+
+                    if (empty($where)) {
+                        // 'Name of child field missing in relationship with $tblchild'
+                        $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild));
+                        break;
+                    } else {
+                        // instantiate an object for this table
+                        if (array_key_exists('subsys_dir', $reldata)) {
+                            $childobject = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$tblchild);
+                        } else {
+                            $childobject = RDCsingleton::getInstance($tblchild);
+                        } // if
+                        if (!empty($this->dbname_old) AND $this->dbname_old == $childobject->dbname) {
+                            // name of parent database has been switched, so switch the child name as well
+                            $childobject->dbname_old = $childobject->dbname;
+                            $childobject->dbname     = $this->dbname;
+                        } // if
+                        $childobject->audit_logging     = $this->audit_logging;
+                        $childobject->sql_no_foreign_db = $this->sql_no_foreign_db;
+                        // check for 'order by' clause
+                        if (isset($reldata['orderby'])) {
+                            $childobject->default_orderby = $reldata['orderby'];
+                        } // if
+                        // now use this object to delete child records
+                        if (!$msg = $childobject->cascadeDelete($where, $this->tablename)) {
+                            $this->errors = array_merge($childobject->getErrors(), $this->errors);
+                        } else {
+                            if (!empty($childobject->delete_count) AND is_array($childobject->delete_count)) {
+                                foreach ($childobject->delete_count as $table => $count) {
+                                    if (isset($this->delete_count[$table])) {
+                                        $this->delete_count[$table] += $count;
+                                    } else {
+                                        if (!is_array($this->delete_count)) {
+                                            $this->delete_count = array();
+                                        } // if
+                                        $this->delete_count[$table] = $count;
+                                    } // if
+                                } // foreach
+                            } // if
+                        } // if
+                        unset($childobject);
+                    } // if
+                    break;
+
+                case 'RESTRICTED':
+                case 'RES':
+                case 'IGN':
+                    // do nothing
+                    break;
+
+                case 'DEX':
+                case 'NUX':
+                    // do nothing as it will be handled by a foreign key constraint
+                    break;
+
+                default:
+                    // 'Unknown relation type: $type'
+                    $this->errors[] = $this->getLanguageText('sys0010', $reldata['type']);
+            } // switch
+        } // foreach
+
+        return;
+
+    } // deleteRelations
+
+    // ****************************************************************************
+    function deleteScrollItem ($index)
+    // delete the specified item from $scrollarray, then return the details of the
+    // next available item.
+    {
+        if ($index > count($this->scrollarray)) {
+            // index is too high, so do not delete
+            $index = count($this->scrollarray);
+        } elseif ($index < 1) {
+            // index is too low, so do not delete
+            $index = 1;
+        } else {
+            // index is valid, so remove indicated item
+            unset($this->scrollarray[$index]);
+            // resequence the array after removing this item
+            $array[0] = 'dummy';
+            foreach ($this->scrollarray as $entry) {
+                $array[] = $entry;
+            } // foreach
+            unset($array[0]);
+            $this->scrollarray = $array;
+            if ($index > count($this->scrollarray)) {
+                // index is too high, so do not delete
+                $index = count($this->scrollarray);
+            } // if
+        } // if
+
+        // replace $where with details from the next available entry in scrollarray
+        if (is_array($this->scrollarray[$index])) {
+            $where = array2where($this->scrollarray[$index], $this->getPkeyNames());
+        } else {
+            $where = $this->scrollarray[$index];
+        } // if
+
+        // set values to be used by scrolling logic
+        $this->scrollindex = $index;
+        $this->pageno      = $index;
+        $this->lastpage    = count($this->scrollarray);
+
+        return $where;
+
+    } // deleteScrollItem
+
+    // ****************************************************************************
+    function deleteSelection ($selection)
+    // delete/update a selection of records in one operation.
+    {
+        $this->errors = array();
+
+        if (empty($selection)) {
+            // 'Nothing has been selected yet.'
+            $this->errors[] = scriptPrevious($this->getLanguageText('sys0081'));
+            return;
+        } // if
+
+        // call custom method for specific processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_deleteSelection')) {
+                $count = $this->custom_processing_object->_cm_deleteSelection($selection);
+                if ($this->errors) return;
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $msg = $this->_cm_deleteSelection($selection);
+            if ($this->errors) return;
+        } // if
+
+        return $msg;
+
+    } // deleteSelection
+
+    // ****************************************************************************
+    function eraseRecord ($fieldarray)
+    // delete the record, and ALL its children, specified in $fieldarray.
+    {
+        $this->errors = array();
+
+        if (is_string($fieldarray)) {
+            // convert from string to array
+            $fieldarray = where2array($fieldarray, false, false);
+        } // if
+
+        // strip any operators from the value portion of the array
+        $fieldarray = stripOperators($fieldarray);
+
+        // check that full primary key has been supplied
+        list($where, $errors) = isPkeyComplete($fieldarray, $this->getPkeyNames());
+        if (!empty($errors)) {
+            $this->errors = $errors;
+            return $fieldarray;
+        } // if
+
+        // get field specifications for this database table
+        $fieldspec = $this->fieldspec;
+
+        // remove any non-database fields from input array
+        foreach ($fieldarray as $field => $fieldvalue) {
+            // check that $field exists in $fieldspec array
+            if (!array_key_exists($field, $fieldspec)) {
+                // it does not (like the SUBMIT button, for example), so remove it
+                unset ($fieldarray[$field]);
+            } // if
+        } // foreach
+
+        // perform any custom pre-erase processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_pre_eraseRecord')) {
+                $fieldarray = $this->custom_processing_object->_cm_pre_eraseRecord($fieldarray);
+                if ($this->errors) return $fieldarray;
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_pre_eraseRecord($fieldarray);
+            if ($this->errors) return $fieldarray;
+        } // if
+
+        if (!empty($fieldarray)) {
+            // delete any tables related to the specified record
+            $this->eraseRelations($fieldarray);
+            if ($this->errors) return $fieldarray;
+
+            // delete the specified record
+            $this->_dml_deleteRecord($fieldarray);
+            if ($this->errors) return $fieldarray;
+        } // if
+
+        // perform any custom post-delete processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_post_eraseRecord')) {
+                $fieldarray = $this->custom_processing_object->_cm_post_eraseRecord($fieldarray);
+                if ($this->errors) return $fieldarray;
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_post_eraseRecord($fieldarray);
+            if ($this->errors) return $fieldarray;
+        } // if
+
+        return $fieldarray;
+
+    } // eraseRecord
+
+    // ****************************************************************************
+    function eraseRelations ($fieldarray)
+    // erase any child records whch are linked to the current record.
+    // this is done by treating every relationship type as CASCADE DELETE
+    {
+        $this->errors = array();
+
+        if (empty($this->child_relations) OR empty($fieldarray)) {
+            return;
+        } // if
+
+        // process contents of $child_relations array
+        foreach ($this->child_relations as $reldata) {
+            $tblchild = $reldata['child'];
+            if (array_key_exists('subsys_dir', $reldata)) {
+                // do not erase from a database in another subsystem
+            } else {
+                switch (strtoupper($reldata['type'])) {
+                    case 'DEX':
+                    case 'NUX':
+                        // do nothing as it will be handled by a foreign key constraint
+                        break;
+
+                    case 'IGN':
+                        // ignore this relationship
+                        break;
+
+                    case 'NULLIFY':
+                    case 'NUL':
+                        // set foreign key(s) to null
+                        $where = NULL;
+                        $update_array = array();
+                        foreach ($reldata['fields'] as $fldparent => $fldchild) {
+                            if (strlen($fldchild) < 1) {
+                                // 'Name of child field missing in relationship with $tblchild'
+                                $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild));
+                                break;
+                            } // if
+                            if (empty($where)) {
+                                $where = "$fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } else {
+                                $where .= " AND $fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } // if
+                            $update_array[$fldchild] = NULL;
+                        } // foreach
+
+                        // instantiate an object for this table
+                        if (array_key_exists('subsys_dir', $reldata)) {
+                            $childobject = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$tblchild);
+                        } else {
+                            $childobject = RDCsingleton::getInstance($tblchild);
+                        } // if
+                        // now use this object to delete child records
+                        if (!$childobject->cascadeNullify($update_array, $where)) {
+                            $this->errors = array_merge($childobject->getErrors(), $this->errors);
+                        } // if
+                        unset($childobject);
+                        break;
+
+                    case 'DELETE':
+                    case 'DEL':
+                    case 'CASCADE':
+                    case 'CAS':
+                    case 'RESTRICTED':
+                    case 'RES':
+                        // erase all related rows
+                        $where = NULL;
+                        foreach ($reldata['fields'] as $fldparent => $fldchild) {
+                            if (strlen($fldchild) < 1) {
+                                // 'Name of child field missing in relationship with $tblchild'
+                                $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild));
+                                break;
+                            } // if
+                            if (empty($where)) {
+                                $where = "$fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } else {
+                                $where .= " AND $fldchild='" .addslashes($fieldarray[$fldparent]) ."'";
+                            } // if
+                        } // foreach
+
+                        // instantiate an object for this table
+                        if (array_key_exists('subsys_dir', $reldata)) {
+                            $childobject = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$tblchild);
+                        } else {
+                            $childobject = RDCsingleton::getInstance($tblchild);
+                        } // if
+                        // check for 'order by' clause
+                        if (isset($reldata['orderby'])) {
+                            $childobject->default_orderby = $reldata['orderby'];
+                        } // if
+                        // pass down the current audit logging switch
+                        $childobject->audit_logging = $this->audit_logging;
+                        $childdata = $childobject->getData_raw($where);
+                        foreach ($childdata as $childrow) {
+                            // now use this object to delete each child record one at a time
+                            $childobject->eraseRecord($childrow);
+                            if ($childobject->getErrors()) {
+                                $this->errors = array_merge($childobject->getErrors(), $this->errors);
+                            } // if
+                        } // foreach
+                        unset($childobject);
+                        break;
+
+                    default:
+                        // 'Unknown relation type: $type'
+                        $this->errors[] = $this->getLanguageText('sys0010', $reldata['type']);
+                } // switch
+            } // if
+
+        } // foreach
+
+        if (count($this->errors) > 0) {
+            return false;
+        } // if
+
+        return true;
+
+    } // eraseRelations
+
+    // ****************************************************************************
+    function executePreparedQuery ($query, $params, $output_type)
+    // prepare and eecute a query
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $result = $DML->prepareAndExecuteQuery($this->dbname_server, $this->tablename, $query, $params, $output_type);
+
+        return $result;
+
+    } // executePreparedQuery
+
+    // ****************************************************************************
+    function executeQuery ($query)
+    // execute one or more pre-defined queries.
+    // $query may be a string (single query) or an array (multiple queries).
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $DML->setRowLocks($this->row_locks);
+
+        if (is_array($query)) {
+            $temp = $query;
+            $temp = array_map("trim", $temp);
+        } else {
+            $query = trim($query);
+            // split string into an array of individual queries
+            $pattern = "/
+(           # start group
+[^';]+      # match as much as possible which doesn't include ' or ;
+|           # or
+'[^']*'     # a single quoted string
+)*          # end group, repeated
+/six";
+            preg_match_all($pattern, $query, $regs);
+            $temp = $regs[0];
+        } // if
+
+        $query_array = array();
+        foreach ($temp as $entry) {
+            // ensure each entry ends with ';'
+            $entry = trim($entry);
+            if (!empty($entry)) {
+                if (substr($entry, -1, 1) != ';') {
+                    $entry .= ';';
+                } // if
+                $query_array[] = $entry;
+            } // if
+        } // foreach
+
+        $result = $DML->multiQuery($this->dbname_server, $this->tablename, $query_array);
+
+        return $result;
+
+    } // executeQuery
+
+    // ****************************************************************************
+    function fetchRow ($resource)
+    // Fetch the next row from a resource created in the getData_serial() method.
+    {
+        $this->errors = array();
+
+        if ($this->skip_getdata) {
+            if (empty($this->fieldarray)) {
+                $row = false;
+            } else {
+                $row = array_shift($this->fieldarray);
+                $row = $this->_cm_post_fetchRow($row);
+            } // if
+            return $row;
+        } // if
+
+        // for SQLSRV it is not possible to perform a serial read on a table and perform a
+        // "begin transaction" on the same connection, so a separate connection is required
+        $this->serial_table = $this->dbname.'_'.$this->tablename;
+        $DML =& $this->_getDBMSengine($this->dbname);
+        $this->serial_table = null;
+
+        $row = $DML->fetchRow($this->dbname_server, $resource);
+
+        if ($row) {
+            // perform any custom post-retrieve processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_post_fetchRow')) {
+                    $row = $this->custom_processing_object->_cm_post_fetchRow($row);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                if ($row) {
+                    $row = $this->_cm_post_fetchRow($row);
+                } // if
+            } // if
+            if (empty($row)) {
+                // this row has been cancelled, so read another one
+                $row = $this->fetchRow($resource);
+            } // if
+        } // if
+
+        return $row;
+
+    } // fetchRow
+
+    // ****************************************************************************
+    function fetchRowChild ($row, &$resource_in)
+    // See if there is are any child records associated with the current row.
+    // (for example, a node in a tree structure may have child nodes)
+    // Any child rows are returned one at a time.
+    // Note that each child row may also have its own children.
+    // NOTE: $resource_in is PASSED BY REFERENCE as it may be updated
+    {
+        $this->errors = array();
+
+        if (empty($row)) return FALSE;
+
+        if (is_True($this->CTE_in_use)) {
+            return FALSE;  // no more processing required
+        } // if
+
+        $keys = array();
+        // get names of SENIOR and JUNIOR keys
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getNodeKeys')) {
+                $keys = $this->custom_processing_object->_cm_getNodeKeys($keys);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            if ($row) {
+                $keys = $this->_cm_getNodeKeys($keys);
+            } // if
+        } // if
+
+        $snr_names = explode(',', $keys['snr_id']);
+        $jnr_names = explode(',', $keys['jnr_id']);
+
+        $resources =& $this->resource_array;
+        if (!is_array($resources)) {
+            $resources = array();
+        } // if
+
+        if (empty($resources)) {
+            // create a new resource
+            foreach ($snr_names as $ix => $name) {
+                $value = $row[trim($jnr_names[$ix])];
+                if (empty($value)) {
+                    $where_array[trim($name)] = 'IS NULL';
+                } else {
+                    $where_array[trim($name)] = $value;
+                } // if
+            } // foreach
+            // make sure the data for this parent row is available to its children
+            $this->setParentObject($this);
+            $this->setParentData($row);
+            // *****
+            $where = array2where($where_array);
+            $resource  = $this->getData_serial($where);
+        } else {
+            $resource = array_pop($resources);
+        } // if
+        $resources[] =& $resource;
+
+        $row = $this->fetchRow($resource);  // read a single row
+
+        if (is_True($this->CTE_in_use)) {
+            $resource_in = $resource;  // replace it with this one
+            return $row;  // all children read using recursive CTE, so no eit this method
+        } // if
+
+        if (empty($row)) {
+            $null = array_pop($resources);  // this resource has been exhausted
+            while (!empty($resources)) {
+                $resource = array_pop($resources);
+                $row = $this->fetchRow($resource);  // read a single row
+                if (!empty($row)) {
+                    $resources[] =& $resource;  // resource not exhausted yet, so put it back
+                    // create a new resource for possible children
+                    foreach ($snr_names as $ix => $name) {
+                        $value = $row[trim($jnr_names[$ix])];
+                        if (empty($value)) {
+                            $where_array[trim($name)] = 'IS NULL';
+                        } else {
+                            $where_array[trim($name)] = $value;
+                        } // if
+                    } // foreach
+                    // make sure the data for this parent row is available to its children
+                    $this->setParentObject($this);
+                    $this->setParentData($row);
+                    // *****
+                    $where = array2where($where_array);
+                    $child_resource  = $this->getData_serial($where);
+                    $resources[] = $child_resource;
+                    break;
+                } // if
+            } // while
+        } else {
+            foreach ($snr_names as $ix => $name) {
+                $value = $row[trim($jnr_names[$ix])];
+                if (empty($value)) {
+                    $where_array[trim($name)] = 'IS NULL';
+                } else {
+                    $where_array[trim($name)] = $value;
+                } // if
+            } // foreach
+            // make sure the data for this parent row is available to its children
+            $this->setParentObject($this);
+            $this->setParentData($row);
+            // *****
+            $where = array2where($where_array);
+            $child_resource  = $this->getData_serial($where);
+            $resources[] = $child_resource;
+        } // if
+
+        //if (!empty($row) AND empty($row['level'])) {
+        //    $row['level'] = count($resources)-1;  // numbering starts from 0, not 1
+        //} // if
+
+        return $row;
+
+    } // fetchRowChild
+
+    // ****************************************************************************
+    function filePickerSelect ($selection)
+    // Deal with selection from a filepicker screen.
+    {
+        // call customisable method in the subclass.
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_filePickerSelect')) {
+                $selection = $this->custom_processing_object->_cm_filePickerSelect($selection);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $selection = $this->_cm_filePickerSelect($selection);
+        } // if
+
+        return $selection;
+
+    } // filePickerSelect
+
+    // ****************************************************************************
+    function fileUpload ($input_name, $temp_file)
+    // Specify file name to be used for the upload.
+    {
+        $this->errors = array();
+
+        $fieldarray = where2array($this->where);
+
+        $output_name = null;
+
+        // call customisable method in the subclass.
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_fileUpload')) {
+                $output_name = $this->custom_processing_object->_cm_fileUpload($input_name, $temp_file, $fieldarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $output_name = $this->_cm_fileUpload($input_name, $temp_file, $fieldarray);
+        } // if
+
+        return rtrim($this->upload_subdir, "/\\") .'/' .$output_name;
+
+    } // fileUpload
+
+    // ****************************************************************************
+    function findDBVersion()
+    // find the version number for this database server.
+    {
+        $dbprefix = findDBPrefix($this->dbname);  // does this DB have a prefix?
+
+        $dbname = $dbprefix.$this->dbname;
+
+        $DB =& $this->_getDBMSengine($dbname);
+
+        $info = $DB->findDBVersion($dbname);
+
+        return $info;
+
+    } // findDBVersion
+
+    // ****************************************************************************
+    function formatData ($fieldarray, &$css_array)
+    // format values retrieved from the database before they are shown to the user.
+    // (such as changing dates from 'CCYY-MM-DD' to 'dd Mmm CCYY'
+    // NOTE: $css_array is passed BY REFERENCE as it may be altered.
+    {
+        if (empty($fieldarray)) return $fieldarray;
+
+        $pattern_id = getPatternId();
+
+        $dateobj = RDCsingleton::getInstance('date_class');
+
+        if (!empty($fieldarray['party_timezone'])) {
+            if (!isset($_SESSION['display_timezone_party']) OR $_SESSION['display_timezone_party'] === false) {
+                $this->messages[] = getLanguageText('sys0238');  // "DateTimes shown in User's timezone"
+            } else {
+                $this->messages[] = getLanguageText('sys0239');  // "DateTimes shown in Party's timezone"
+            } // if
+        } // if
+
+        $pattern1 = '/'
+                  . '^'               // begins with
+                  . '(?P<date>'       // start named pattern
+                  . '[\d]{4}-[\d]{2}-[\d]{2}'    // '9999-99-99'
+                  . ')'               // end named pattern
+                  . '[ ]*'            // zero or more spaces
+                  . '(?P<time>'       // start named pattern
+                  . '[\d]{2}:[\d]{2}:[\d]{2}'    // 'HH:MM:SS'
+                  . ')'               // end named pattern
+                  . '/';
+
+        foreach ($fieldarray as $fieldname => $fieldvalue) {
+            // only deal with fields defined in $fieldspec
+            if (isset($this->fieldspec[$fieldname])) {
+                // get specifications for current field
+                $fieldspec = $this->fieldspec[$fieldname];
+                if (!isset($fieldspec['type'])) {
+                    $fieldspec['type'] = 'string';  // set default type
+                } // if
+
+                if ($GLOBALS['mode'] == 'search') {
+                    if (preg_match('/^(is not null|is null)$/i', trim($fieldvalue), $regs )) {
+                        $fieldvalue = strtoupper($regs[0]);
+                        $fieldspec['type'] = 'string';
+                        $operator = '';
+                    } elseif (preg_match("/^(<>|<=|<|>=|>|!=|=)/", $fieldvalue, $regs )) {
+                        $operator = $regs[0];
+                        // strip operator from front of string
+                        $fieldvalue = substr($fieldvalue, strlen($operator));
+                        if (substr($fieldvalue, 0, 1) == "'") {
+                            // remove leading quote
+                            $fieldvalue = substr($fieldvalue, 1);
+                        } // if
+                        if (substr($fieldvalue, -1) == "'") {
+                            // remove trailing quote
+                            $fieldvalue = substr($fieldvalue, 0, -1);
+                        } // if
+                    } else {
+                        $operator = '=';
+                    } // if
+                } else {
+                    $operator = '=';
+                } // if
+
+                switch (strtolower($fieldspec['type'])) {
+                    case 'string':
+                        if (isset($fieldspec['control']) AND $fieldspec['control'] == 'multidrop') {
+                            list($operator, $value, $delimiter) = extractOperatorValue($fieldvalue);
+                            if (trim($operator) == 'IN') {
+                                // turn this string into an array
+                                $value = trim($value, '()');
+                                $array = explode(',', $value);
+                                foreach ($array as $key => $entry) {
+                                    if (substr($entry, 0, 1) == "'") {
+                                        // remove leading quote
+                                        $entry = substr($entry, 1);
+                                    } // if
+                                    if (substr($entry, -1, 1) == "'") {
+                                        // remove leading quote
+                                        $entry = substr($entry, 0, strlen($entry)-1);
+                                    } // if
+                                    $array[$key] = $entry;
+                                } // foreach
+                                $fieldvalue = $array;
+                                $operator   = '=';
+                            } // if
+                        } // if
+                        break;
+                    case 'set':
+                    case 'array':
+                        if (!is_array($fieldvalue)) {
+                            // convert string into an array
+                            if (strlen($fieldvalue) > 0) {
+                                // note: postgresql uses '{}' to enclose the array
+                                $fieldvalue = explode(',', trim($fieldvalue, '{}'));
+                            } else {
+                                $fieldvalue = array();
+                            } // if
+                        } // if
+                        break;
+                    case 'boolean':
+                        if (is_bool($fieldvalue) or strlen($fieldvalue) > 0) {
+                            $boolean = $this->getLanguageArray('boolean');
+                            // set boolean fields to either TRUE or FALSE
+                            if (is_True($fieldvalue)) {
+                                if (isset($fieldspec['true'])) {
+                                    $fieldvalue = $fieldspec['true'];
+                                } elseif (isset($boolean['true'])) {
+                                    $fieldvalue = $boolean['true'];
+                                } // if
+                            } else {
+                                if (isset($fieldspec['false'])) {
+                                    $fieldvalue = $fieldspec['false'];
+                                } elseif (isset($boolean['false'])) {
+                                    $fieldvalue = $boolean['false'];
+                                } // if
+                            } // if
+                        } else {
+                            // value has not defined yet
+                            if ($GLOBALS['mode'] != 'search') {
+                                if (isset($fieldspec['default'])) {
+                                    // default value has been defined, so use it
+                                    $fieldvalue = $fieldspec['default'];
+                                } // if
+                            } else {
+                                // leave as undefined
+                            } // if
+                        } // if
+                        break;
+                    case 'date':
+                        if (isset($fieldspec['infinityisnull']) and substr($fieldvalue, 0, 10) == '9999-12-31') {
+                            // this date is shown to the user as empty
+                            $fieldvalue = '';
+                        } else {
+                            if ($GLOBALS['mode'] == 'search' and strpos($fieldvalue, '%')) {
+                                // this is already in LIKE format for a search screen. so leave it alone
+                                // (apart from removing trailing '%' which will be replaced later)
+                                $fieldvalue = rtrim($fieldvalue, '%');
+                            } elseif (!empty($fieldvalue)) {
+                                if ($this->no_convert_timezone === FALSE AND isset($_SESSION['timezone_server'])) {
+                                    try {
+                                        $date = $dateobj->getInternalDate($fieldvalue);
+                                        $fieldvalue = $date;
+                                    } catch (Exception $e) {
+                                        $this->errors[$fieldname] = $e->getMessage();
+                                        $date = $fieldvalue;
+                                    } // try
+                                    if (isset($_SESSION['display_timezone_party']) AND is_True($_SESSION['display_timezone_party'])) {
+                                        if (!empty($fieldarray['party_timezone'])) {
+                                            $timezone_client = $fieldarray['party_timezone'];    // timezone of data's party
+                                        } else {
+                                            $timezone_client = $_SESSION['timezone_client'];     // timezone of logon user
+                                        } // if
+                                    } else {
+                                        //if (!empty($_SESSION['timezone_client'])) {
+                                        //    $timezone_client = $_SESSION['timezone_client'];    // timezone of logon user
+                                        //} else {
+                                            $timezone_client = '';
+                                        //} // if
+                                    } // if
+                                    $fieldvalue = convertTZdate($date, '12:00:00', $_SESSION['timezone_server'], $timezone_client);
+                                } // if
+                                // convert date from internal to external format
+                                try {
+                                    $date = $dateobj->getExternalDate($fieldvalue, $_SESSION['date_format_output']);
+                                    $fieldvalue = $date;
+                                } catch (Exception $e) {
+                                    // date cannot be converted, so leave as is
+                                } // try
+                            } // if
+                        } // if
+                        break;
+                    case 'datetime':
+                    case 'timestamp':
+                        if (isset($fieldspec['infinityisnull']) and substr($fieldvalue, 0, 10) == '9999-12-31') {
+                            // this date is shown to the user as empty
+                            $fieldvalue = '';
+                        } else {
+                            if (!empty($fieldvalue)) {
+                                if ($this->no_convert_timezone === FALSE AND isset($_SESSION['timezone_server'])) {
+                                    try {
+                                        $datetime = $dateobj->getInternalDateTime($fieldvalue, $fieldspec);
+                                        $fieldvalue = $datetime;
+                                    } catch (Exception $e) {
+                                        $datetime = $fieldvalue;
+                                    } // try
+                                    if (isset($_SESSION['display_timezone_party']) AND is_True($_SESSION['display_timezone_party'])) {
+                                        if (!empty($fieldarray['party_timezone'])) {
+                                            $timezone_client = $fieldarray['party_timezone'];    // timezone of data's party
+                                        } else {
+                                            $timezone_client = $_SESSION['timezone_client'];     // timezone of logon user
+                                        } // if
+                                    } else {
+                                        //if (!empty($_SESSION['timezone_client'])) {
+                                        //    $timezone_client = $_SESSION['timezone_client'];    // timezone of logon user
+                                        //} else {
+                                            $timezone_client = '';
+                                        //} // if
+                                    } // if
+                                    if (!empty($timezone_client)) {
+                                        try {
+                                             $result = convertTZ($datetime, $_SESSION['timezone_server'], $timezone_client);
+                                             $fieldvalue = $result;
+                                        } catch (Exception $e) {
+                                            // date cannot be converted, so leave as is
+                                        } // try
+                                    } // if
+                                } // if
+                                // convert datetime from internal to external format
+                                try {
+                                    $result = $dateobj->getExternalDateTime($fieldvalue, $_SESSION['date_format_output']);
+                                    $fieldvalue = $result;
+                                } catch (Exception $e) {
+                                    // date cannot be converted, so leave as is
+                                } // try
+                            } // if
+                        } // if
+                        break;
+                    case 'time':
+                        if (isset($fieldspec['size']) and $fieldspec['size'] == 5) {
+                            // exclude the seconds portion of the time
+                            $fieldvalue = substr($fieldarray[$fieldname], 0, 5);
+                        } elseif (isset($fieldspec['size']) and $fieldspec['size'] == 8) {
+                            // include the seconds portion of the time
+                            $fieldvalue = substr($fieldarray[$fieldname], 0, 8);
+                        } // if
+                        break;
+                    case 'integer':
+                        if ($fieldvalue == 0 AND isset($fieldspec['blank_when_zero'])) {
+                            if ($operator == '=') {
+                                $fieldvalue = ''; // value is zero, so display blank
+                            } // if
+                        } // if
+                        if ($GLOBALS['mode'] != 'search') {
+                            if (isset($fieldspec['zerofill']) AND isset($fieldspec['size'])) {
+                                while (strlen($fieldvalue) < $fieldspec['size']){
+                                    $fieldvalue = '0'.$fieldvalue;
+                                } // while
+                            } // if
+                        } // if
+                        break;
+                    case 'double':
+                    case 'float':
+                    case 'real':
+                        if (!empty($fieldvalue)) {
+                            if (is_numeric($fieldvalue)) {
+                                $float = sprintf('%F', $fieldvalue);
+                                $float = rtrim($float,'0');  // remove trailing zeroes after decimal point
+                                $float = rtrim($float,'.');  // remove decimal point if it is the last character
+                                if (strlen($float) > 18) {
+                                    $fieldvalue = (double)$fieldvalue;    // number is too long, so display in scientific notation
+                                } else {
+                                    $fieldvalue = $float;                 // display as decimal number
+                                } // if
+                            } // if
+                        } // if
+                        break;
+                    case 'decimal':
+                    case 'numeric':
+                        if (isset($fieldspec['precision']) AND $fieldspec['precision'] == 38 AND $fieldspec['scale'] == 0) {
+                            if (!preg_match('/^(output)/i', $pattern_id) AND isset($fieldspec['control']) AND preg_match('/^(dropdown)$/i', $fieldspec['control'])) {
+                                // do not format this number
+                            } else {
+                                $fieldvalue = formatParticipantId($fieldvalue, false);
+                            } // if
+                        } elseif (!empty($this->errors[$fieldname])) {
+                            // this field has errors, so don't format it
+                        } else {
+                           if (isset($fieldspec['scale'])) {
+                               $decimal_places = $fieldspec['scale'];
+                           } else {
+                               $decimal_places = 0;
+                           } // if
+                           if ($fieldvalue == 0 AND isset($fieldspec['blank_when_zero'])) {
+                               if ($operator == '=') {
+                                   $fieldvalue = ''; // value is zero, so display blank
+                               } // if
+                           } else {
+                               // remove any thousands separators
+                               // this screws up -> $fieldvalue = number_unformat($fieldvalue);
+                               // format number according to current locale settings
+                               $strip_trailing_zero =& $fieldspec['strip_trailing_zero'];
+                               $fieldvalue = formatNumber($fieldvalue, $decimal_places, $strip_trailing_zero);
+                           } // if
+                        } // if
+                       break;
+                    default:
+                        ;
+                } // switch
+
+                if (preg_match('/^(csv|pdf)/i', strtolower($GLOBALS['mode']))) {
+                    if (isset($fieldspec['optionlist'])) {
+                        if (empty($fieldvalue)) {
+                            $fieldvalue = null;
+                        } else {
+                            // convert value into corresponding entry(s) from optionlist
+                            if (isset($this->lookup_data[$fieldspec['optionlist']])) {
+                                $lookup = $this->lookup_data[$fieldspec['optionlist']];
+                                if (!empty($lookup)) {
+                                    if (is_array($fieldvalue)) {
+                                        // convert array into a comma separated string
+                                        $string = '';
+                                        foreach ($fieldvalue as $key) {
+                                            $string .= $lookup[$key] .',';
+                                        } // foreach
+                                        $fieldvalue = rtrim($string, ',');
+                                    } else {
+                                        if (array_key_exists($fieldvalue, $lookup)) {
+                                            $fieldvalue = $lookup[$fieldvalue];
+                                        } // if
+                                    } // if
+                                } // if
+                            } // if
+                        } // if
+                    } elseif (isset($fieldspec['foreign_field'])) {
+                        if (isset($fieldarray[$fieldspec['foreign_field']])) {
+                            if ($fieldspec['foreign_field'] != $fieldname) {
+                                $fieldvalue = $fieldarray[$fieldspec['foreign_field']];
+                            } // if
+                        } // if
+                    } // if
+                } // if
+
+                if (isset($fieldspec['password'])) {
+                    if (isset($fieldspec['hash'])) {
+                        if (preg_match('/(sha1|md5)/i', $fieldspec['hash'])) {
+                            // for this hash type do not output anything
+                            $fieldvalue = '';
+                        } // if
+                    } // if
+                } // if
+
+                // put changed value back into array
+                if ($GLOBALS['mode'] == 'search' AND $operator != '=') {
+                    $fieldarray[$fieldname] = $operator.$fieldvalue;
+                } else {
+                    $fieldarray[$fieldname] = $fieldvalue;
+                } // if
+
+            } else {
+                // not in $this->fieldspec, so cannot be formatted
+                $fieldarray[$fieldname] = $fieldvalue;
+            } // if
+        } // foreach
+
+        // perform any custom formatting
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_formatData')) {
+                $fieldarray = $this->custom_processing_object->_cm_formatData($fieldarray, $css_array);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_formatData($fieldarray, $css_array);
+        } // if
+
+        return $fieldarray;
+
+    } // formatData
+
+    // ****************************************************************************
+    function free_result ($resource)
+    // free a resource created by getData_serial()
+    {
+        $result = $this->_dml_free_result($resource);
+
+        return $result;
+
+    } // free_result
+
+    // ****************************************************************************
+    function getChildClass ()
+    // return class name of the child object.
+    {
+        if (!is_object($this->child_object)) {
+            $child_class = FALSE;
+        } elseif (!method_exists($this->child_object, 'getClassName')) {
+            $child_class = FALSE;
+        } else {
+            $child_class = $this->child_object->getClassName();
+        } // if
+
+        return $child_class;
+
+    } // getChildClass
+
+    // ****************************************************************************
+    function &getChildData ()
+    // return $fieldarray from the child object (if there is one).
+    // NOTE: output is passed by reference.
+    {
+        if (!is_object($this->child_object)) {
+            $child_data = FALSE;
+        } elseif (!method_exists($this->child_object, 'getFieldArray')) {
+            $child_data = FALSE;
+        } else {
+            $child_data = $this->child_object->getFieldArray();
+        } // if
+
+        return $child_data;
+
+    } // getChildData
+
+    // ****************************************************************************
+    function getChildObject ()
+    // return the child object (if it exists).
+    {
+        if (!is_object($this->child_object)) {
+            return FALSE;
+        } else {
+            return $this->child_object;
+        } // if
+
+        return $this->child_object;
+
+    } // getChildObject
+
+    // ****************************************************************************
+    function getClassName ()
+    // return the name of this class, but without any numeric suffix.
+    // Example: table 'mnu_tran' may have subtypes (aliases) of 'mnu_tran_s01'
+    // and 'mnu_tran_jnr'. These will return the following:
+    // 'mnu_task'     -> 'mnu_task'
+    // 'mnu_task_s01' -> 'mnu_task'
+    // 'mnu_task_jnr' -> 'mnu_task_jnr'
+    {
+        $tablename = removeTableSuffix(get_class($this));
+
+        return strtolower($tablename);
+
+    } // getClassName
+
+    // ****************************************************************************
+    function getCollapsed ()
+    // get array of tree nodes which have been collapsed
+    {
+        $collapsed = $this->collapsed;
+        $this->collapsed = array();
+
+        return $collapsed;
+
+    } // getCollapsed
+
+    // ****************************************************************************
+    function getColumnNames ($where=null, $initialise_data=true)
+    // obtain list of column names which will be output with this SQL statement.
+    // (this is used in 'std.output4.inc')
+    {
+        $this->lookup_data['selected'] = $this->getLanguageArray('selected');
+
+        $fieldarray = array();
+
+        // this screen requires different fields
+        $fieldspec  = array();
+        $fieldspec['fieldname']         = array('type' => 'string',
+                                                'noedit' => 'y');
+        //$fieldspec['selected']          = array('type' => 'string',
+        //                                        'control' => 'dropdown',
+        //                                        'optionlist' => 'selected',
+        //                                        'required' => 'y');
+        $fieldspec['selected']          = array('type' => 'string',
+                                                'control' => 'checkbox');
+        $fieldspec['sort_seq']          = array('type' => 'integer',
+                                                'size' => 5,
+                                                'minvalue' => 0,
+                                                'maxvalue' => 65535,
+                                                'required' => 'y');
+        $fieldspec['output_name']       = array('type' => 'string',
+                                                'size' => 80,
+                                                'required' => 'y');
+        $this->fieldspec       = $fieldspec;
+        $this->saved_fieldspec = $fieldspec;
+
+        $resource   = $this->getData_serial($where, 1, 0);
+        $fieldarray = $this->fetchRow($resource);
+        $res        = $this->free_result($resource);
+
+        if (empty($fieldarray)) {
+            // "Nothing retrieved from the database."
+            $this->errors[] = getLanguageText('sys0085');
+            return array();
+        } // if
+
+        // initial value for each column is 'selected'
+        foreach ($fieldarray as $fieldname => &$fieldvalue) {
+            $fieldvalue = 'Y';
+        } // foreach
+        reset($fieldarray);
+
+        // modify list of column names and their default values
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getColumnNames')) {
+                $this->custom_processing_object->fieldspec =& $this->fieldspec;
+                $fieldarray = $this->custom_processing_object->_cm_getColumnNames($fieldarray);
+            } // if
+        } // if
+        //if ($this->errors) return;
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_getColumnNames($fieldarray);
+        } // if
+
+        $sort_seq = 0;
+        $rowdata  = array();
+        foreach ($fieldarray as $fieldname => $selected) {
+            if (is_True($selected)) {
+                $selected = 'Y';
+            } else {
+                $selected = 'N';
+            } // if
+            $sort_seq++;
+            $rowdata[$sort_seq]['fieldname']   = $fieldname;
+            $rowdata[$sort_seq]['selected']    = $selected;
+            $rowdata[$sort_seq]['sort_seq']    = $sort_seq;
+            $rowdata[$sort_seq]['output_name'] = ucwords(str_replace('_', ' ', $fieldname));
+        } // foreach
+
+        $this->fieldarray = $rowdata;
+
+        return $this->fieldarray;
+
+    } // getColumnNames
+
+    // ****************************************************************************
+    function getCount ($where=null)
+    // get count of records that satisfy selection criteria in $where.
+    {
+        $where = trim($where);  // remove leading/trailing whitespace characters
+        if (strlen($where) > 0) {
+            $count = $this->_dml_getCount($where);
+            return $count;
+        } else {
+            return 0;
+        } // if
+
+    } // getCount
+
+    // ****************************************************************************
+    function getData ($where=null)
+    // get data from this table using optional 'where' criteria.
+    // this is formatted before being displayed to the user.
+    {
+        $this->errors = array();    // initialise
+        $data_raw     = array();
+
+        if ($this->pageno <= 1) {
+            $this->skip_offset = 0;
+        } // if
+
+        $pattern_id   = getPatternId();
+
+//        if (!empty($this->sql_where)) {
+//            // remove anything in $this->sql_where which is duplicated in $where
+//            $this->sql_where = filterWhere1Where2($where, $this->sql_where, $this->tablename);
+//        } // if
+
+        $this->where = $where;      // save
+
+        if (is_null($this->pageno)) {
+            $this->pageno = 1;      //default
+        } // if
+
+        // convert $where from string to an associative array
+        $where_array = where2array($where, $this->pageno, false);
+
+        if (!empty($where_array['rdc_table_name'])) {
+            $where_array = convert_parent_id_to_child_id($where_array, $this->tablename, $this->parent_relations);
+            $where = array2where($where_array);
+        } // if
+
+        if (is_True($this->initiated_from_controller)) {
+            // replace with original unmodified version
+            $this->sql_search  = $this->sql_search_orig;
+        } // if
+
+        // make this data available if passed down by parent object
+        $parent_data =& $this->getParentData();
+
+        $where_array = where2array($where);  // recreate without operators
+
+        // perform any custom pre-retrieve processing
+        $where = $this->custom_pre_getData($where, $where_array, $parent_data);
+        if ($this->errors) return;
+
+        if ($this->where != $where) {
+            // $where has been modified, so update $where_array
+            $this->where = $where;
+            $where_array = where2array($where, $this->pageno);
+        } // if
+
+        // look for any dummy fields starting with 'rdc_' (these are control flags)
+        $control_flags = extractNamedFields($where_array, '^rdc_');
+
+        if ($this->checkPrimaryKey AND !$this->allow_empty_where) {
+            // check that full primary key (or candidate key) has been supplied
+            list($where1, $errors1) = isPkeyComplete($where_array, $this->getPkeyNames(), $this->unique_keys, $this);
+            if (!empty($errors1)) {
+                $this->errors = $errors1;
+                return;
+            } // if
+            $this->checkPrimaryKey = false;
+        } // if
+
+        if ($this->skip_getdata) {
+            // use data already loaded in
+            if (is_int(key($this->fieldarray))) {
+                // already indexed by row
+                $data_raw = $this->fieldarray;
+            } else {
+                if (empty($this->fieldarray)) {
+                    $data_raw = array();
+                } else {
+                    // associative array, so make it row zero
+                    $data_raw[0] = $this->fieldarray;
+                } // if
+            } // if
+            if (empty($this->numrows)) {            // 2017-10-11 by AJM
+                $this->numrows = count($data_raw);
+            } // if                                 // 2017-10-11 by AJM
+            if (empty($this->scrollarray)) {
+                // set record/page counts from contents of $this->fieldarray
+                if ($this->numrows == 0) {
+                    $this->lastpage    = 0;
+                    $this->pageno      = 0;
+                    $this->prev_pageno = 0;
+                } else {
+                    if ($this->rows_per_page > 0) {
+                        $this->lastpage = ceil($this->numrows/$this->rows_per_page);
+                    } else {
+                        $this->lastpage = $this->numrows;
+                    } // if
+                    if ($this->pageno < 1) {
+                        $this->pageno      = 1;
+                        $this->prev_pageno = 0;
+                    } elseif ($this->pageno > $this->lastpage) {
+                        $this->pageno = $this->lastpage;
+                    } // if
+                } // if
+            } // if
+
+        } else {
+            // assemble the $where string from its component parts
+            $where_str = $this->_sqlAssembleWhere($where, $where_array);
+
+            // get the data from the database
+            $data_raw = $this->_dml_getData($where_str);
+        } // if
+
+        if (!empty($control_flags)) {
+            // put these flags back into every row in case they are needed
+            foreach ($data_raw as &$rowdata) {
+                $rowdata = array_merge($rowdata, $control_flags);
+            } // foreach
+        } // if
+
+        if (!empty($this->select_string)) {
+            $data_raw = $this->setSelectedRows($this->select_string, $data_raw);
+        } // if
+
+        if (is_True($this->initiated_from_controller)) {
+            if (isset($GLOBALS['script_vars']['task_id_run_at_end'])) {
+                if ($this->rows_per_page > 1
+                OR ($this->rows_per_page = 1 AND $this->numrows > 1)) {
+                    // too many rows selected, so turn this option off
+                    unset($GLOBALS['script_vars']['task_id_run_at_end']);
+                    unset($GLOBALS['script_vars']['task_id_run_at_end_context']);
+                } else {
+                    // set context for this option
+                    $GLOBALS['script_vars']['task_id_run_at_end_context'] = $where;
+                } // if
+            } // if
+        } // if
+
+        if (isset($GLOBALS['mode']) AND $GLOBALS['mode'] == 'insert') {
+            // do nothing
+        } else {
+            // clear 'nodisplay' option which may have been set in previous iteration
+            foreach ($this->fieldspec as $field => $spec) {
+                if (array_key_exists('autoinsert', $spec) OR array_key_exists('autoupdate', $spec)) {
+                    unset($this->fieldspec[$field]['nodisplay']);
+                } // if
+            } // foreach
+        } // if
+
+        if (isset($this->instruction)) {
+            $data_raw = $this->_processInstruction($data_raw);
+        } // if
+
+        $save_rowcount = count($data_raw);  // save this in case somerows are skipped
+
+        // perform any custom post-retrieve processing
+        $data_raw = $this->_post_getData($data_raw, $where);
+
+        $this->where = $where;
+
+        if ($this->rows_per_page > 0) {
+            // pagination is in force
+            if (count($data_raw) < $save_rowcount) {
+                $save_numrows = $this->numrows;
+                $data_raw = array_merge($data_raw);  // re-sequence this array
+                // some rows have been skipped, so read forward one row at a time until current page is full
+                if (empty($this->skip_offset)) {
+                    $this->skip_offset = ($this->rows_per_page * $this->pageno);  // identify next row number (starting from zero)
+                } else {
+                    $this->skip_offset = $this->skip_offset + $this->rows_per_page;  // continue from previous offset
+                } // if
+                $resource = $this->_dml_getData_serial($where_str, null, $this->skip_offset);
+
+                while (count($data_raw) < $save_rowcount) {
+                    $next = $this->fetchRow($resource);
+                    if (empty($next)) {
+                        break;
+                    } else {
+                        $this->skip_offset++;
+                        $next = array($next);  // convert from associative to indexed
+                        $null = null;
+                        $next = $this->_post_getData($next, $null);
+                        if (!empty($next)) {
+                            $next = $next[key($next)];  // convert from indexed to associative
+                            $data_raw[] = $next;
+                        } // if
+                    } // if
+                } // while
+                $this->free_result($resource);
+                $this->numrows = $save_numrows;
+                // recalculate page number of last row
+                $this->pageno = ceil($this->skip_offset / $this->rows_per_page);
+            } // if
+        } // if
+
+        if (is_True($this->initiated_from_controller) AND count($data_raw) == 1) {
+            if (preg_match('/^(mnu_user)$/i', $this->tablename)) {
+                // ignore account restrictions on this tables
+                $condition = true;
+            } elseif (isset($this->fieldspec['rdcaccount_id']) AND !isset($fieldarray['rdc_is_link_table'])) {
+                $data = $data_raw[0];
+                if (preg_match('/^(ADD|DEL|UPD|MULTI)/i', $pattern_id) AND array_key_exists('rdcaccount_id', $data)) {
+                    if (is_null($_SESSION['rdcaccount_id'])) {
+                        // this user can work in any account
+                    } else {
+                        if ($data['rdcaccount_id'] == 1 AND $_SESSION['rdcaccount_id'] != 1) {
+                            // "Record belongs to the shared account, so can only be modified by an administrator"
+                            $this->errors[] = getLanguageText('sys0236');
+                        } elseif ($data['rdcaccount_id'] != $_SESSION['rdcaccount_id']) {
+                            // "Record belongs to a non-shared account, so can only be modified by a user in the same account"
+                            $this->errors[] = getLanguageText('sys0235');
+                        } // if
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (!is_True($this->initiated_from_controller)) {
+            // get any missing data from parent tables
+            foreach ($data_raw as $rownum => &$rowdata) {
+                if (isset($rowdata['rdc_to_be_deleted']) OR isset($rowdata['rdc_no_foreign_data'])) {
+                    // skip the next bit
+                } else {
+                    $rowdata = $this->getForeignData($rowdata, $rownum);
+                } // if
+            } // foreach
+        } // if
+
+        $this->fieldarray = $data_raw;
+
+        return $this->fieldarray;
+
+    } // getData
+
+    // ****************************************************************************
+    function getData_raw ($where=null)
+    // get data from this table using optional 'where' criteria.
+    // this is returned raw (as read from the database with any formatting).
+    {
+        $this->errors = array();
+
+        // convert $where from string to an associative array
+        $where_array = where2array($where, false, false);
+        if (!empty($where_array['curr_or_hist'])) {
+            // move from $where to $search
+            $search_array = where2array($this->sql_search, false, false);
+            if (empty($search_array['curr_or_hist'])) {
+                $search_array['curr_or_hist'] = $where_array['curr_or_hist'];
+                $this->sql_search = array2where($search_array);
+            } // if
+            unset($where_array['curr_or_hist']);
+            $where = array2where($where_array);
+        } // if
+
+        if (isset($this->fieldspec['rdcaccount_id'])) {
+            if (!empty($where_array['rdcaccount_id'])) {
+                // value has already been supplied, so continue
+            } else {
+                $account_id =& $_SESSION['rdcaccount_id'];
+                if (empty($account_id)) {
+                    // no account id supplied, so read everything on these tables only
+                } else {
+                    if ($account_id == 1) {
+                        $account_id_string = "$this->tablename.rdcaccount_id='1'";
+                    } else {
+                        $account_id_string = "$this->tablename.rdcaccount_id IN ('1', '$account_id')";
+                    } // if
+                    if (empty($this->sql_where)) {
+                        $this->sql_where = $account_id_string;
+                    } else {
+                        if (substr_count($this->sql_where, $account_id_string) == 0) {
+                            $this->sql_where .= " AND $account_id_string";
+                        } // if
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (!empty($this->sql_where)) {
+            if (preg_match('/^(OR )/i', $this->sql_where)) {
+                // begins with 'OR ', so do not append using ' AND '
+                $where .= ' '.$this->sql_where;
+            } else {
+                if (empty($where)) {
+                    $where = $this->sql_where;
+                } else {
+                    $where = "$where AND $this->sql_where";
+                } // if
+            } // if
+        } // if
+
+        if (!empty($this->sql_search)) {
+            // turn 'current/historic/future' into a range of dates
+            $this->sql_search = $this->currentOrHistoric($this->sql_search, $this->nameof_start_date, $this->nameof_end_date);
+            if (!empty($this->sql_search)) {
+                $this->sql_search = qualifyWhere($this->sql_search, $this->tablename, $this->fieldspec, $this->sql_from);
+            } // if
+            if (!empty($this->sql_search)) {
+                if (empty($where)) {
+                    $where = $this->sql_search;
+                } else {
+                    $where = "$where AND $this->sql_search";
+                } // if
+            } // if
+        } // if
+
+//        if (!empty($this->sql_from)) {
+//            $alias_array = extractAliasNames($this->sql_select);
+//            // anything in WHERE which has an alias name will be moved to HAVING
+//            $having_array = where2array($this->sql_having, false, false);
+//            $where = qualifyWhere($where, $this->tablename, $this->fieldspec, $this->sql_from, $this->sql_search_table, $alias_array, $having_array);
+//        } // if
+
+        $data_raw = $this->_dml_getData($where, TRUE);
+
+        $this->fieldarray = $data_raw;
+
+        return $this->fieldarray;
+
+    } // getData_raw
+
+    // ****************************************************************************
+    function getData_serial ($where=null, $rdc_limit=null, $rdc_offset=null, $unbuffered=false)
+    // get data from this table using optional 'where' criteria.
+    // this does not return the records one page at a time but allows a serial
+    // read via the fetchRow() method of all records for processing in another way,
+    // such as exporting to CSV.
+    {
+        $this->errors = array();    // initialise
+
+        $this->where = $where;      // save
+
+        // convert $where from string to an associative array
+        $where_array = where2array($where, $this->pageno);
+
+        if ($this->initiated_from_controller AND !empty($this->sql_search_orig)) {
+            // replace with original unmodified version
+            $this->sql_search = $this->sql_search_orig;
+        } // if
+
+        if ($this->initiated_from_controller AND !empty($this->sql_groupby_orig)) {
+            // replace with original unmodified version
+            $this->sql_groupby = $this->sql_groupby_orig;
+        } // if
+
+        // make this data available if passed down by parent object
+        $parent_data =& $this->getParentData(true);
+
+        // perform any custom pre-retrieve processing
+        $where = $this->custom_pre_getData($where, $where_array, $parent_data);
+        if ($this->errors) return;
+
+        if ($this->where != $where) {
+            // $where has been modified, so update $where_array
+            $this->where = $where;
+            $where_array = where2array($where, $this->pageno);
+        } // if
+
+        if ($this->checkPrimaryKey) {
+            // check that full primary key (or candidate key) has been supplied
+            list($where1, $errors1) = isPkeyComplete($where_array, $this->getPkeyNames(), $this->unique_keys);
+            if (!empty($errors1)) {
+                $this->errors = $errors1;
+                return;
+            } // if
+            $this->checkPrimaryKey = false;
+        } // if
+
+        if ($this->skip_getdata) {
+            // do not populate $this->fieldarray from the database
+            if (is_int(key($this->fieldarray))) {
+                // already indexed by row
+                $data_raw = $this->fieldarray;
+            } else {
+                // associative array, so make it row zero
+                $data_raw[0] = $this->fieldarray;
+            } // if
+            $this->fieldarray = $data_raw;
+            $this->numrows    = count($data_raw);
+            $resource         = null;
+        } else {
+            // assemble the $where string from its component parts
+            $where_str = $this->_sqlAssembleWhere($where, $where_array);
+
+            // get the result from the database
+            $resource = $this->_dml_getData_serial($where_str, $rdc_limit, $rdc_offset, $this->unbuffered_query);
+        } // if
+
+        // Note: individual records are obtained using the fetchRow() method
+
+        return $resource;
+
+    } // getData_serial
+
+    // ****************************************************************************
+    function getDBname ()
+    // return the database name for this table.
+    {
+        return strtolower($this->dbname);
+
+    } // getDBname
+
+    // ****************************************************************************
+    function getEmailParams ($template_id, $where, $entity_data, $party_data)
+    // get values to be inserted into the email template.
+    {
+        $params = array();
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getEmailParams')) {
+                $params = $this->custom_processing_object->_cm_getEmailParams($template_id, $where, $params, $entity_data, $party_data);
+            } // if
+        } // if
+        if ($this->errors) return $params;
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $params = $this->_cm_getEmailParams($template_id, $where, $params, $entity_data, $party_data);
+            if ($this->errors) return;
+        } // if
+
+        return $params;
+
+    } // getEmailParams
+
+    // ****************************************************************************
+    function getEnum ($fieldname)
+    // get the contents of an ENUM field and return it as an array.
+    {
+        $array = $this->_dml_getEnum($fieldname);
+
+        return $array;
+
+    } // getEnum
+
+    // ****************************************************************************
+    function getErrors ()
+    // return array of error messages
+    {
+        $errors = $this->errors;
+        $this->errors = array();
+
+        if (!is_array($errors)) {
+            // convert string into an array
+            $errors = (array)$errors;
+        } // if
+
+        return $errors;
+
+    } // getErrors
+
+    // ****************************************************************************
+    function getExpanded ()
+    // get array of tree nodes which have been expanded
+    {
+        $expanded = $this->expanded;
+        $this->expanded = array();
+
+        return $expanded;
+
+    } // getExpanded
+
+    // ****************************************************************************
+    function getExtraData ($input, $where=null, $no_foreign_data=false)
+    // get additional data for this table, such as lookup lists.
+    {
+        //$this->errors = array();
+
+        $associative = false;
+
+        // $input may be an array or a string
+        if (empty($input)) {
+            $associative   = true;
+            $fieldarray[0] = array();
+            $key           = 0;
+            $where         = null;
+        } elseif (is_string($input)) {
+            // convert from string to associative array
+            $fieldarray[0] = where2array($input);
+            $key           = 0;
+            $where         = $input;
+        } else {
+            reset($input);   // fix for version 4.4.1
+            if (is_string(key($input))) {
+                // associative array, so set it to row zero
+                $associative   = true;
+                $fieldarray[0] = $input;
+                $key           = 0;
+            } else {
+                // indexed by row, so use it as-is
+                $fieldarray    = $input;
+                $key           = key($input);
+            } // if
+            // convert first row in $fieldarray to a string
+            //$where = array2where($fieldarray[$key]);
+        } // if
+
+        if (is_True($no_foreign_data)) {
+            // skip this next bit
+        } else {
+            // retrieve data from foreign (parent) tables for each row
+            foreach ($fieldarray as $rownum => $rowdata) {
+                $fieldarray[$rownum] = $this->getForeignData($rowdata, $rownum);
+            } // foreach
+        } // if
+
+        // change current table configuration (optional)
+        $fieldarray[$key] = $this->changeConfig($where, $fieldarray[$key]);
+
+        // perform custom processing (such as obtaining lookup lists) on FIRST record only
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getExtraData')) {
+                $fieldarray[$key] = $this->custom_processing_object->_cm_getExtraData($where, $fieldarray[$key]);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray[$key] = $this->_cm_getExtraData($where, $fieldarray[$key]);
+        } // if
+
+        $fieldarray[$key] = array_change_key_case($fieldarray[$key], CASE_LOWER);
+
+        $pattern_id = getPatternId();
+        if (preg_match('/^(MULTI4)$/i', $pattern_id) AND !empty($this->initial_values)) {
+            foreach ($fieldarray as $rownum => $rowdata) {
+                // insert any initial values obtained from MNU_INITIAL_VALUE_ROLE/USER table
+                foreach ($this->initial_values as $key1 => $value1) {
+                    if (empty($rowdata[$key1])) {
+                        // current value is empty, so overwrite with initial value
+                        $rowdata[$key1] = $value1;
+                    } // if
+                } // foreach
+                $fieldarray[$rownum] = $rowdata;
+            } // foreach
+        } // if
+
+        if (is_True($associative) OR $this->rows_per_page == 1) {
+            $fieldarray = $fieldarray[0];  //convert from indexed to associative
+        } // if
+
+        // store updated $fieldarray within this object
+        $this->fieldarray = $fieldarray;
+
+        //return $this->getFieldArray();
+        return $fieldarray;
+
+    } // getExtraData
+
+    // ****************************************************************************
+    function getFieldArray ($first_row_only=false)
+    // return array of data that currently resides within this object
+    // (usually stuff which was retrieved from the database).
+    {
+        if (!is_array($this->fieldarray)) {
+            $this->fieldarray = array();
+        } // if
+
+        if (is_long(key($this->fieldarray))) {
+            foreach ($this->fieldarray as $rownum => $rowdata) {
+                if (empty($rowdata)) {
+                    unset($this->fieldarray[$rownum]);
+                } // if
+            } // foreach
+        } // if
+
+        if (empty($this->fieldarray)) {
+            return $this->fieldarray;
+        } // if
+
+        reset($this->fieldarray);
+        if ($this->rows_per_page == 1 OR is_True($first_row_only)) {
+            // return an associative array (one row only)
+            if (is_long(key($this->fieldarray))) {
+                return $this->fieldarray[0];        // convert indexed to associative
+            } else {
+                return $this->fieldarray;
+            } // if
+        } else {
+            // return an indexed array (one or more rows)
+            if (is_long(key($this->fieldarray))) {
+                return $this->fieldarray;
+            } else {
+                return array($this->fieldarray);    // convert associative to indexed
+            } // if
+        } // if
+
+    } // getFieldArray
+
+    // ****************************************************************************
+    function getFieldSpec ()
+    // return array of field specifications (which may be adjusted by $this->field_access).
+    {
+        if (!empty($this->field_access)) {
+            // include specified access_type in $fieldspec array
+            foreach ($this->field_access as $field_id => $access_type) {
+                if (array_key_exists($field_id, $this->fieldspec)) {
+                    $this->fieldspec[$field_id][$access_type] = 'y';
+                } // if
+            } // foreach
+        } // if
+
+        return $this->fieldspec;
+
+    } // getFieldSpec
+
+    // ****************************************************************************
+    function getFieldSpec_original ()
+    // set the specifications for this database table.
+    {
+        if (empty($this->fieldspec)) {
+            // first time only - look for changes in engine, prefix or database name
+            list($dbname, $this->dbprefix, $this->dbms_engine) = findDBConfig($this->dbname);
+            $this->dbname_server = $this->dbprefix.$dbname;
+        } // if
+
+        if (is_bool($this->audit_logging) OR !empty($this->audit_logging)) {
+            $save_audit_logging = $this->audit_logging;
+        } else {
+            $save_audit_logging = null;
+        } // if
+
+        //static $fieldspec_original;
+
+        $fieldspec                = array();
+        $this->primary_key        = array();
+        $this->unique_keys        = array();
+        $this->child_relations    = array();
+        $this->parent_relations   = array();
+        $this->audit_logging      = FALSE;
+        $this->default_orderby    = '';
+        $this->alt_language_table = '';
+        $this->alt_language_cols  = '';
+        $this->nameof_start_date  = '';
+        $this->nameof_end_date    = '';
+
+        if (empty($this->dirname_dict)) {
+            $this->dirname_dict = $this->dirname;
+        } // if
+
+        $tablename = $this->getTableName();
+        if (empty($this->fieldspec_original)) {
+            // include table specifications generated by Data Dictionary
+            $attempt = array();  // an array of possible file names
+            if (!empty($GLOBALS['project_code'])) {
+                $dirname = dirname($this->dirname) ."/classes/custom-processing/{$GLOBALS['project_code']}/";
+                $fn      = "{$dirname}cp_{$tablename}.dict.inc";
+                $attempt[] = $fn;
+            } // if
+            if (!empty($this->dirname_dict)) {
+                $attempt[] = "{$this->dirname_dict}/{$tablename}.dict.inc";
+            } // if
+            $attempt[] = "{$this->dirname}/{$tablename}.dict.inc";
+            foreach ($attempt as $fn) {
+                if (file_exists($fn)) {
+                    require($fn);
+                    $save_fieldspec['fieldspec'] = $fieldspec;
+                    $data_to_save       = array('save_fieldspec');
+                    $primary_key        = $this->primary_key;
+                    $data_to_save[]     = 'primary_key';
+                    $unique_keys        = $this->unique_keys;
+                    $data_to_save[]     = 'unique_keys';
+                    $child_relations    = $this->child_relations;
+                    $data_to_save[]     = 'child_relations';
+                    $parent_relations   = $this->parent_relations;
+                    $data_to_save[]     = 'parent_relations';
+                    $audit_logging      = $this->audit_logging;
+                    $data_to_save[]     = 'audit_logging';
+                    $default_orderby    = $this->default_orderby;
+                    $data_to_save[]     = 'default_orderby';
+                    $alt_language_table = $this->alt_language_table;
+                    $data_to_save[]     = 'alt_language_table';
+                    $alt_language_cols  = $this->alt_language_cols;
+                    $data_to_save[]     = 'alt_language_cols';
+                    $nameof_start_date  = $this->nameof_start_date;
+                    $data_to_save[]     = 'nameof_start_date';
+                    $nameof_end_date    = $this->nameof_end_date;
+                    $data_to_save[]     = 'nameof_end_date';
+                    // save this data or subsequent access
+                    $this->fieldspec_original = compact($data_to_save);
+                    unset($attempt, $fn);
+                    break;
+                } // if
+            } // foreach
+            if (isset($attempt)) {
+                // "Unable to locate '.dict.inc' file for table '%1\$s'"
+                trigger_error(getLanguageText('sys0249', $tablename), E_USER_ERROR);
+            } // if
+
+        } else {
+            // restore from save data
+            $count = extract($this->fieldspec_original);
+            $fieldspec                = $save_fieldspec['fieldspec'];
+            $this->primary_key        = $primary_key;
+            $this->unique_keys        = $unique_keys;
+            $this->child_relations    = $child_relations;
+            $this->parent_relations   = $parent_relations;
+            $this->audit_logging      = $audit_logging;
+            $this->default_orderby    = $default_orderby;
+            $this->alt_language_table = $alt_language_table;
+            $this->alt_language_cols  = $alt_language_cols;
+            $this->nameof_start_date  = $nameof_start_date;
+            $this->nameof_end_date    = $nameof_end_date;
+        } // if
+
+        if (is_bool($save_audit_logging) OR !empty($save_audit_logging)) {
+            $this->audit_logging = $save_audit_logging;
+        } // if
+
+        if (!empty($_SESSION['date_format_output'])) {
+            $dateobj = RDCsingleton::getInstance('date_class');
+            foreach ($fieldspec as $field => $spec) {
+                if (preg_match('/date/i', $spec['type'], $regs)) {
+                    $date_length = $dateobj->getDateLength($_SESSION['date_format_output'], $spec['type']);
+                    $fieldspec[$field]['size'] = $date_length;
+                } // if
+            } // foreach
+        } // if
+
+        if (defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+            $this->audit_logging = false;
+        } // if
+
+        //if ($this->dbname != 'unknown') {
+            if (!is_object($this->custom_processing_object)) {
+                $this->_getCustomProcessingObject();
+            } // if
+        //} // if
+
+        // remove references to any relationships which do not exist in this installation
+        foreach ($this->child_relations as $index => $relation) {
+            if (isset($relation['subsys_dir'])) {
+                $classname = '../'. $relation['subsys_dir'] .'/classes/' .$relation['child'] .'.class.inc';
+                if (!file_exists($classname)) {
+                    unset($this->child_relations[$index]);
+                } // if
+            } // if
+        } // foreach
+
+        return $fieldspec;
+
+    } // getFieldSpec_original
+
+    // ****************************************************************************
+    function getFileBody ($fieldarray)
+    // if this row is associated with a file then its contents will be returned
+    // base64_encoded so that it can be included in an XML document.
+    // (see also putFileBody() for the reverse operation)
+    {
+        list($filename, $filebody) = $this->_cm_getFileBody($fieldarray);
+
+        if (!empty($filebody)) {
+            $filebody = chunk_split(base64_encode($filebody));
+            return array('file_name' => $filename,
+                         'base64_encoded' => $filebody);
+        } // if
+
+        return false;
+
+    } // getFileBody
+
+    // ****************************************************************************
+    function getForeignData ($fieldarray, $rownum=null)
+    // Retrieve data from foreign (parent) database tables.
+    // (parent tables are identified in $this->parent_relations)
+    {
+        if (empty($fieldarray)) {
+            return $fieldarray;
+        } // if
+
+        // perform custom processing before standard processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getForeignData')) {
+                $fieldarray = $this->custom_processing_object->_cm_getForeignData($fieldarray, $rownum);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_getForeignData($fieldarray, $rownum);
+        } // if
+
+        if (is_True($this->no_foreign_data)) {
+            return $fieldarray;  // skip this next bit
+        } //
+
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        foreach ($this->parent_relations as $reldata) {
+            if (isset($reldata['parent_field'])) {
+                // may be more than one parent_field, so turn it into an array of separate field names
+                list($parent_fields, $alias_array) = extractFieldNamesIndexed($reldata['parent_field']);
+                $ix = 0;  // set to first entry
+                if (isset($fieldarray[$parent_fields[$ix]]) AND strlen($fieldarray[$parent_fields[$ix]]) > 0) {
+                    // parent field is already there, so do nothing
+                } else {
+                    // construct WHERE clause to read from parent table
+                    $where_array = array();
+                    foreach ($reldata['fields'] as $fldchild => $fldparent) {
+                        if (strlen($fldchild) < 1) {
+                            // 'Name of child field missing in relationship with $tblchild'
+                            $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild));
+                            break;
+                        } // if
+                        if (!isset($fieldarray[$fldchild]) or strlen($fieldarray[$fldchild]) == 0) {
+                            // foreign key field is missing, so stop further processing
+                            $where_array = array();
+                            break;
+                        } // if
+                        if (preg_match('/^(IS NULL|IS NOT NULL)$/i', trim($fieldarray[$fldchild]))) {
+                            if ($GLOBALS['mode'] != 'search') {
+                                // does not contain a proper value, so do not attempt to read
+                                $fieldarray[$fldchild] = null;
+                            } // if
+                            $where_array = array();
+                            break;
+                        } elseif (preg_match('/^(<>|<=|<|>=|>|!=|=)/i', trim($fieldarray[$fldchild]))) {
+                            if ($GLOBALS['mode'] != 'search') {
+                                // does not contain a proper value, so do not attempt to read
+                                $fieldarray[$fldchild] = null;
+                            } // if
+                            $where_array = array();
+                            break;
+                        } else {
+                            if (is_long($fieldarray[$fldchild]) AND $fieldarray[$fldchild] == 0) {
+                                $where_array = array();
+                                break;
+                            } // if
+                        } // if
+                        $where_array[$fldparent] = $fieldarray[$fldchild];
+                    } // foreach
+                    if (empty($where_array)) {
+                        // $where is empty, so set foreign field(s) to empty
+                        foreach ($parent_fields as $ix => $parent_field) {
+                            if (!isset($this->fieldspec[$parent_field])) {
+                                // field is not is current $fieldspec array, so it can be initialised
+                                $fieldarray[$parent_field] = null;
+                            } // if
+                        } // foreach
+                    } else {
+                        $where = array2where($where_array, false, false, true);
+                        $tblparent = $reldata['parent'];
+                        // instantiate an object for this table
+                        if (array_key_exists('subsys_dir', $reldata)) {
+                            $parentobj = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$tblparent);
+                        } else {
+                            $parentobj = RDCsingleton::getInstance($tblparent);
+                        } // if
+                        $parentobj->sql_select = $reldata['parent_field'];
+                        if (!empty($reldata['alias'])) {
+                            $parentobj->sql_from = $reldata['parent'].' AS '.$reldata['alias'];
+                        } // if
+                        $parent_data = $parentobj->getData($where);
+                        unset($parentobj);
+                        if (!empty($parent_data)) {
+                            $parent_data = $parent_data[0];
+                            // copy specified parent field(s) into $fieldarray
+                            foreach ($parent_fields as $ix => $parent_field) {
+                                if (empty($fieldarray[$parent_field])) {
+                                    // field is currently empty, so replace it with parent value
+                                    if (array_key_exists($parent_field, $parent_data)) {
+                                        $fieldarray[$parent_field] = $parent_data[$parent_field];
+                                    } else {
+                                        // original name not found, so look for an alias
+                                        list($original, $alias) = getFieldAlias3($alias_array[$ix]);
+                                        if ($original != $alias) {
+                                            $fieldarray[$parent_field] = $parent_data[$original];
+                                        } // if
+                                    } // if
+                                } // if
+                            } // foreach
+                        } else {
+                            if ($GLOBALS['mode'] == 'search') {
+                                // key may be incomplete, so leave it alone
+                            } else {
+                                // not found, so set foreign key(s) to empty
+                                //foreach ($reldata['fields'] as $fldchild => $fldparent) {
+                                //    if (in_array($fldchild, $this->primary_key)) {
+                                //        // part of primary key, so leave it alone
+                                //    } else {
+                                //        // not part of primary key, so empty it
+                                //        $fieldarray[$fldchild] = null;
+                                //    } // f
+                                //} // foreach
+                            } // if
+                        } // if
+                    } // if
+                } // if
+            } // if
+        } // foreach
+
+        return $fieldarray;
+
+    } // getForeignData
+
+    // ****************************************************************************
+    function getInitialData ($where)
+    // get initial data for new records in this table.
+    {
+        $this->errors = array();
+        $this->numrows = 0;
+
+        if (!empty($where)) {
+            if (is_array($where)) {
+                $fieldarray = $where;
+            } else {
+                // convert 'where' string to an associative array
+                $fieldarray = where2array($where);
+                foreach ($fieldarray as $fieldname => $fieldvalue) {
+                    if (!is_string($fieldname)) {
+                        // this is a numeric index, not a valid field name, so remove it
+                        unset($fieldarray[$fieldname]);
+                    } else {
+                        if (preg_match('/^(IS NULL|IS NOT NULL|NOT IN|IN[ ]?\()/i', trim($fieldvalue))) {
+                            // not a valid value, so remove it
+                            unset($fieldarray[$fieldname]);
+                        } elseif (array_key_exists($fieldname, $this->fieldspec)) {
+                            if (!empty($fieldvalue)) {
+                                // do not allow any items in $where criteria to be changed
+                                $this->fieldspec[$fieldname]['noedit'] = 'y';
+                            } // if
+                        } // if
+                    } // if
+                } // foreach
+            } // if
+        } else {
+            $fieldarray = array();
+        } // if
+
+        if (!empty($this->initial_values)) {
+            // insert any initial values obtained from MNU_INITIAL_VALUE_ROLE/USER table
+            foreach ($this->initial_values as $key => $value) {
+                if (empty($fieldarray[$key])) {
+                    // current value is empty, so overwrite with initial value
+                    $fieldarray[$key] = $value;
+                } // if
+            } // foreach
+        } // if
+
+        if (is_True($this->allow_scrolling)) {
+            $save_pageno   = $this->pageno;
+            $save_lastpage = $this->lastpage;
+        } // if
+
+        if (isset($this->fieldspec['rdcaccount_id'])) {
+            if (!empty($_SESSION['rdcaccount_id'])) {
+                $account_id = $_SESSION['rdcaccount_id'];
+            } else {
+                $account_id = null;
+            } // if
+            if (empty($account_id)) {
+                $account_id = 1;  // change from NULL to the shared account
+            } // if
+            if (array_key_exists('rdcaccount_id', $fieldarray) AND $fieldarray['rdcaccount_id'] != $account_id) {
+                // "User's account (X) is not compatible with record's account (Y)";
+                $this->errors['rdcaccount_id'] = getLanguageText('sys0232', $account_id, $fieldarray['rdcaccount_id']);
+                return $fieldarray;
+            } else {
+                // default to the current user's account_id
+                $fieldarray['rdcaccount_id'] = $account_id;
+            } // if
+        } // if
+
+        // perform any custom processing (optional)
+        $this->sqlSelectInit();
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getInitialData')) {
+                $fieldarray = $this->custom_processing_object->_cm_getInitialData($fieldarray);
+                if (!is_array($fieldarray)) $fieldarray = array();
+            } // if
+        } // if
+        if ($this->errors) return $fieldarray;
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_getInitialData($fieldarray);
+            if (!is_array($fieldarray)) $fieldarray = array();
+        } // if
+        if ($this->errors) return $fieldarray;
+
+        if (is_True($this->allow_scrolling)) {
+            $this->pageno   = $save_pageno;
+            $this->lastpage = $save_lastpage;
+        } // if
+
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        // do not display autoinsert/autoupdate fields on input screens
+        foreach ($this->fieldspec as $field => $spec) {
+            if (array_key_exists('auto_increment', $spec) OR array_key_exists('autoinsert', $spec) OR array_key_exists('autoupdate', $spec)) {
+                $this->fieldspec[$field]['nodisplay'] = 'y';
+            } // if
+        } // foreach
+
+        reset($fieldarray);  // fix to enable key($fieldarray) to work
+        if (!empty($fieldarray) and !is_string(key($fieldarray))) {
+            // this has multiple rows, so ignore
+        } else {
+            // shift all field names to lower case
+            $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+            if (is_True($this->ignore_empty_fields)) {
+                // do not insert any missing fields
+                $this->ignore_empty_fields = false;
+            } else {
+                // insert values for any missing fields
+                foreach ($this->fieldspec as $fieldname => $spec) {
+                    if (isset($spec['nondb'])) {
+                        // this is a non-database field, so ignore it
+                    } else {
+                        if (!isset($fieldarray[$fieldname]) OR strlen($fieldarray[$fieldname]) < 1) {
+                            if (isset($spec['default']) AND strlen($spec['default']) > 0 AND !preg_match('/(date|time|datetime)/i', $spec['type'])) {
+                                if (array_key_exists('auto_increment', $spec) OR array_key_exists('autoinsert', $spec) OR array_key_exists('autoupdate', $spec) OR $fieldname == 'rdcaccount_id') {
+                                    // value will be inserted later
+                                    $fieldarray[$fieldname] = NULL;
+                                } else {
+                                    // default value exists, so load it
+                                    $fieldarray[$fieldname] = $spec['default'];
+                                } // if
+                            } else {
+                                // load an empty value so the field will appear in the XML output
+                                $fieldarray[$fieldname] = NULL;
+                            } // if
+                        } // if
+                    } // if
+                } // foreach
+            } // if
+        } // if
+
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // getInitialData
+
+    // ****************************************************************************
+    function getInitialDataMultiple ($where)
+    // get initial data for new records in this table.
+    // this is called before insertMultiple(), so there is no user dialog.
+    {
+        $this->errors = array();
+        $this->numrows = 0;
+
+        if (!empty($where)) {
+            if (is_array($where)) {
+                $fieldarray = $where;
+            } else {
+                // convert 'where' string to an array which is indexed by row number
+                $array1 = splitWhereByRow($where);
+                // convert 'where' for each row into an associative array
+                foreach ($array1 as $rownum => $rowdata) {
+                    $fieldarray[] = where2array($rowdata);
+                } // foreach
+            } // if
+        } else {
+            $fieldarray = array();
+        } // if
+
+        // perform any custom processing (optional)
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getInitialDataMultiple')) {
+                $fieldarray = $this->custom_processing_object->_cm_getInitialDataMultiple($fieldarray);
+                if (!is_array($fieldarray)) $fieldarray = array();
+            } // if
+        } // if
+        if ($this->errors) return $fieldarray;
+
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            // perform any custom processing (optional)
+            $fieldarray = $this->_cm_getInitialDataMultiple($fieldarray);
+            if (!is_array($fieldarray)) $fieldarray = array();
+        } // if
+        if ($this->errors) return $fieldarray;
+
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // getInitialDataMultiple
+
+    // ****************************************************************************
+    function getInstruction ()
+    // return an optional instruction to the previous script.
+    {
+        return $this->instruction;
+
+    } // getInstruction
+
+    // ****************************************************************************
+    function getLanguageArray ($id)
+    // get named array from the language file.
+    {
+        $classdir = $GLOBALS['classdir'];  // save
+        $cwd      = getcwd();
+
+        // switch to correct directory for retrieving message text
+        $this->checkMessageDirectory();
+
+        // call the function in the standard library
+        $array = getLanguageArray ($id);
+
+        $GLOBALS['classdir'] = $classdir;  // restore
+        chdir($cwd);
+
+        return $array;
+
+    } // getLanguageArray
+
+    // ****************************************************************************
+    function getLanguageEntries ($rows, $parent_data, $fieldlist)
+    // ensure that $rows contains an entry for each supported language on MNU_LANGUAGE.
+    {
+        if (!empty($rows)) {
+            return $rows;  // some records already there, so do nothing
+        } // if
+
+        // convert $fieldlist from string to array
+        $fieldlist = explode(',', $fieldlist);
+
+        // edit data passed down from parent record
+        foreach ($parent_data as $fieldname => $fieldvalue) {
+            // remove unwanted columns
+            if (!array_key_exists($fieldname, $this->fieldspec)) {
+                // field does not exist in this table, so remove it
+                unset($parent_data[$fieldname]);
+            } elseif (array_key_exists('pkey', $this->fieldspec[$fieldname])) {
+                // leave the primary key
+            } elseif ($this->fieldspec[$fieldname]['type'] != 'string') {
+                // not a string field, so remove it
+                unset($parent_data[$fieldname]);
+            } elseif (array_key_exists('autoinsert', $this->fieldspec[$fieldname])) {
+                unset($parent_data[$fieldname]);
+            } elseif (array_key_exists('autoupdate', $this->fieldspec[$fieldname])) {
+                unset($parent_data[$fieldname]);
+            } // if
+        } // foreach
+
+        $where = array2where($parent_data, $this->getPkeyNames(), $this);
+
+        // obtain list of supported languages
+        $language_array = $_SESSION['supported_languages'];
+        if (!empty($_SESSION['default_language'])) {
+            // remove default language as this is not an alternative
+            unset($language_array[$_SESSION['default_language']]);
+        } // if
+
+        // eliminate languages which already have an entry on this table
+        foreach ($rows as $rownum => $rowdata) {
+            if (array_key_exists($rowdata['language_id'], $language_array)) {
+                unset($language_array[$rowdata['language_id']]);
+            } // if
+        } // foreach
+
+        // create entries for languages which are missing
+        foreach ($language_array as $language_id => $language_data) {
+            $fieldarray = $parent_data;
+            $fieldarray['language_id'] = $language_id;
+            //$new_data[] = $fieldarray;
+            $newdata = $this->insertOrUpdate($fieldarray);
+            if ($this->errors) {
+                $result = $this->rollback();
+                return false;
+            } // if
+            $rows[] = $newdata;
+        } // foreach
+
+        return $rows;
+
+    } // getLanguageEntries
+
+    // ****************************************************************************
+    function getLanguageText ($id, $arg1=null, $arg2=null, $arg3=null, $arg4=null, $arg5=null)
+    // get text from the language file and include up to 5 arguments.
+    {
+        $classdir = $GLOBALS['classdir'];  // save
+        $cwd      = getcwd();
+
+        // switch to correct directory for retrieving message text
+        $this->checkMessageDirectory();
+
+        // call the function in the standard library
+        $string = getLanguageText ($id, $arg1, $arg2, $arg3, $arg4, $arg5);
+
+        $GLOBALS['classdir'] = $classdir;  // restore
+        chdir($cwd);
+
+        return $string;
+
+    } // getLanguageText
+
+    // ****************************************************************************
+    function getLastIndex ()
+    // return the last index number for $this->scrollArray.
+    {
+        return count($this->scrollarray);
+
+    } // getLastIndex
+
+    // ****************************************************************************
+    function getLastPage ()
+    // return the last page number for retrieved rows.
+    {
+        return (int)$this->lastpage;
+
+    } // getLastPage
+
+    // ****************************************************************************
+    function getLookupData ()
+    // get data to be used in lookups (dropdowns, radio buttons, etc).
+    // this is populated in getExtraData().
+    {
+        if (!empty($this->lookup_data)) {
+            $data = $this->lookup_data;
+        } else {
+            $data = array();
+        } // if
+
+        if (!empty($this->lookup_css)) {
+            $css = $this->lookup_css;
+        } else {
+            $css = array();
+        } // if
+
+        return array($data, $css);
+
+    } // getLookupData
+
+    // ****************************************************************************
+    function getMessages ()
+    // return any messages which are not errors.
+    {
+        $messages = (array)$this->messages;
+
+        $this->messages = array();
+
+        return $messages;
+
+    } // getMessages
+
+    // ****************************************************************************
+    function getNodeData ($expanded, $where=null, $collapsed=null)
+    // retrieve requested tree structure from the database.
+    // $expanded may be a list of nodes which are to be expanded, or the word
+    // 'ALL' to sigify that all possible nodes should be expanded.
+    // $collapsed may be a list of nodes which have been collapsed.
+    // $where identifies the start point of a tree structure
+    {
+        if (empty($where)) {
+            $wherearray = null;
+        } else {
+            // turn $where string into an associative array
+            $wherearray = where2array($where);
+        } // if
+
+        if (isset($this->instruction)) {
+            // save this until AFTER the call to _cm_getNodeData
+            $instruction = $this->instruction;
+            unset($this->instruction);
+        } // if
+
+        if (empty($expanded)) {
+            $expanded = array();
+        } // if
+
+        if (empty($collapsed)) {
+            $collapsed = array();
+        } // if
+
+        $rows_per_page = $this->rows_per_page;  // save
+        $pageno        = empty($this->pageno) ? 1 : $this->pageno;
+
+        // get data for the selected nodes
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getNodeData')) {
+                $fieldarray = $this->custom_processing_object->_cm_getNodeData($expanded, $where, $wherearray, $collapsed);
+            } // if
+        } // if
+        if ($this->errors) return;
+        //if (preg_match('/^(cp_)/i', $this->getClassName()) AND isset($this->calling_object) AND is_object($this->calling_object)) {
+        if (preg_match('/\bcustom-processing\b/i', $this->dirname)) {
+            // called from within a custom object, so do not jump over the next call
+            $this->custom_replaces_standard = false;
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_getNodeData($expanded, $where, $wherearray, $collapsed);
+            if ($this->errors) return;
+        } // if
+
+//        if ($this->rows_per_page > 0) {
+//            $this->rows_per_page = $rows_per_page;  // restore
+//        } // if
+//        if ($this->rows_per_page > 0) {
+//            $this->lastpage = ceil($this->numrows/$this->rows_per_page);
+//        } else {
+//            $this->lastpage = 1;
+//        } // if
+//        if ($pageno       > $this->lastpage) {
+//            $this->pageno = $this->lastpage;
+//        } else {
+//            $this->pageno = $pageno;
+//        } // if
+
+        if (!empty($this->select_string)) {
+            $fieldarray = $this->setSelectedRows($this->select_string, $fieldarray);
+        } // if
+
+        if (isset($instruction)) {
+            // process an instructions from a child script
+            $this->instruction = $instruction;
+            $fieldarray = $this->_processInstruction($fieldarray);
+        } // if
+
+        $this->fieldarray = $fieldarray;
+
+        $this->where = $where;  // save this for any child forms
+
+        return $fieldarray;
+
+    } // getNodeData
+
+    // ****************************************************************************
+    function getNumRows ()
+    // return the number of rows retrived for the current page.
+    {
+        return (int)$this->numrows;
+
+    } // getNumRows
+
+    // ****************************************************************************
+    function getOrderBy ()
+    // return current sort order (to be used in sql SELECT statement).
+    {
+        // allow sort order to be customised
+        $orderby = $this->_cm_getOrderBy($this->sql_orderby);
+
+        if (empty($orderby)) {
+            $orderby = $this->default_orderby_task;
+        } // if
+        if (empty($orderby)) {
+            $orderby = $this->default_orderby;
+        } // if
+
+        if (empty($orderby)) {
+            $this->sql_orderby_seq = null;
+        } else {
+            if (!empty($this->sql_from)) {
+                $orderby = qualifyOrderby($orderby, $this->tablename, $this->fieldspec, $this->sql_select, $this->sql_from);
+            } // if
+            $this->sql_orderby_seq = $this->getOrderBySeq($orderby, $this->sql_orderby_seq);
+        } // if
+
+        return $orderby;
+
+    } // getOrderBy
+
+    // ****************************************************************************
+    function getOrderBySeq (&$orderby=null, $orderby_seq=null)
+    // return sort sequence ('asc' or 'desc').
+    // NOTE: $orderby is passed by reference as it may be modified
+    {
+        if (empty($orderby)) {
+            $orderby_seq = null;
+        } else {
+            // find out if any sort sequence has been specified on any first field
+            $array = explode(',', $orderby);
+            // look for any trailing 'asc' or 'desc'
+            $pattern = '/( asc| ascending| desc| descending)$/i';
+            $found = false;
+            foreach ($array as $sortfield) {
+                if (preg_match($pattern, $sortfield, $regs)) {
+                    $found = true;
+                    if (count($array) == 1) {
+                        // only one field, so remove sequence from fieldname
+                        $orderby = substr($orderby, 0, -strlen($regs[0]));
+                        $orderby_seq = trim($regs[0]);
+                    } else {
+                        // more than one field, so remove separate sequence
+                        $orderby_seq = null;
+                    } // if
+                } // if
+            } // foreach
+            if ($found == false AND empty($orderby_seq)) {
+                $orderby_seq = 'asc';
+            } // if
+        } // if
+
+        return $orderby_seq;
+
+    } // getOrderBySeq
+
+    // ****************************************************************************
+    function getPageNo ()
+    // get current page number to be retrieved for a multi-page display.
+    {
+        if (is_null($this->pageno)) {
+            if ($this->lastpage > 0) {
+                $this->pageno = 1;  // default to first page
+            } // if
+        } // if
+
+        return (int)$this->pageno;
+
+    } // getPageNo
+
+    // ****************************************************************************
+    function getParentClass ()
+    // return class name of the parent object.
+    {
+        if (!is_object($this->parent_object)) {
+            $parent_class = FALSE;
+        } elseif (!method_exists($this->parent_object, 'getClassName')) {
+            $parent_class = FALSE;
+        } else {
+            $parent_class = $this->parent_object->getClassName();
+        } // if
+
+        return $parent_class;
+
+    } // getParentClass
+
+    // ****************************************************************************
+    function &getParentData ($first_row_only=false)
+    // return $fieldarray from the parent object.
+    // NOTE: output is passed by reference.
+    {
+        if (!is_object($this->parent_object)) {
+            $parent_data = FALSE;
+        } elseif (!method_exists($this->parent_object, 'getFieldArray')) {
+            $parent_data = FALSE;
+        } else {
+            $parent_data = $this->parent_object->getFieldArray($first_row_only);
+        } // if
+
+        return $parent_data;
+
+    } // getParentData
+
+    // ****************************************************************************
+    function getParentObject ()
+    // return the parent object (if it exists).
+    {
+        if (!is_object($this->parent_object)) {
+            return FALSE;
+        } else {
+            return $this->parent_object;
+        } // if
+
+        return $this->parent_object;
+
+    } // getParentObject
+
+    // ****************************************************************************
+    function getPartyId_for_email ($fieldarray)
+    // identify the party_id to be used for sending an email.
+    {
+        $party_id = null;
+
+        $party_id = $this->_cm_getPartyId_for_email($fieldarray);
+
+        return $party_id;
+
+    } // getPartyId_for_email
+
+    // ****************************************************************************
+    function getPkeyArray ($fieldarray=null, $next_task=null)
+    // return the list of primary key values for the last selection of data
+    // which was retrieved from this table (or the passed array).
+    {
+        // get name(s) of field(s) which form the primary key
+        $pkeynames = $this->getPkeyNames();
+
+        //if (!empty($this->unique_keys)) {
+        //    // include any candidate keys
+        //    foreach ($this->unique_keys as $key) {
+        //        $pkeynames = array_merge($pkeynames, $key);
+        //    } // foreach
+        //    $pkeynames = array_unique($pkeynames);
+        //} // if
+
+        if (!empty($next_task) AND is_string($next_task)) {
+            // convert string to an array of details
+            $taskobj = RDCsingleton::getInstance('mnu_task');
+            $next_task = $taskobj->checkSelection($next_task);
+            if ($taskobj->errors) {
+                return $taskobj->errors;
+            } // if
+        } // if
+
+        if (!empty($next_task) AND !preg_match('/^(audit)/i', $next_task['task_id'])) {
+            // obtain any custom adjustments to this array
+            $task_id    = $next_task['task_id'];
+            $pattern_id = $next_task['pattern_id'];
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_getPkeyNames')) {
+                    $pkeynames = $this->custom_processing_object->_cm_getPkeyNames($pkeynames, $task_id, $pattern_id);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $pkeynames  = $this->_cm_getPkeyNames($pkeynames, $task_id, $pattern_id);
+            } // if
+            if (empty($pkeynames)) {
+                // "Primary key has not been defined for table 'x'"
+                $this->errors[] = getLanguageText('sys0198', $this->tablename);
+                return false;
+            } // if
+        } // if
+
+        if (empty($fieldarray)) {
+            $fieldarray = $this->fieldarray;
+        } // if
+
+        reset($fieldarray);   // fix for version 4.4.1
+        if (!is_array($fieldarray[key($fieldarray)])) {
+            // array is one level deep - convert to 2 levels
+            $fieldarray = array($fieldarray);
+        } // if
+
+        $pkeyarray = array();
+        $rowcount  = 0;
+
+        // step through each row
+        foreach ($fieldarray as $row) {
+            // note that $rowcount starts at 1, not 0
+            $rowcount++;
+            foreach ($pkeynames as $fieldname) {
+                if (array_key_exists($fieldname, $row)) {
+                    // add 'name=value' to array
+                    $pkeyarray[$rowcount][$fieldname] =& $row[$fieldname];
+                } // if
+                if ($fieldname == 'id') {
+                    // include name of this table so that 'id' can be translated in the child
+                    $pkeyarray[$rowcount]['rdc_table_name'] = get_class($this);
+                } // if
+            } // foreach
+        } // foreach
+
+        return $pkeyarray;
+
+    } // getPkeyArray
+
+    // ****************************************************************************
+    function getPkeyNames ()
+    // return the list of primary key fields in this table.
+    {
+        if (!empty($this->primary_key)) {
+            $array = $this->primary_key;
+        } else {
+            // get names from contents of $this->fieldspec
+            $array = array();
+            foreach ($this->fieldspec as $field => $spec) {
+                // look for keyword 'pkey' in field specifications
+                if (isset($spec['pkey'])) {
+                    $array[] = $field;
+                } // if
+            } // foreach
+        } // if
+
+        return $array;
+
+    } // getPkeyNames
+
+    // ****************************************************************************
+    function getPkeyNamesAdjusted ()
+    // return the (adjusted) list of primary key fields in this table.
+    {
+        // get array of original names
+        $pkey_names  = $this->getPkeyNames();
+
+        //if (!empty($this->unique_keys)) {
+        //    // include any candidate keys
+        //    foreach ($this->unique_keys as $key) {
+        //        $pkey_names = array_merge($pkey_names, $key);
+        //    } // foreach
+        //    $pkey_names = array_unique($pkey_names);
+        //} // if
+
+        // allow this array to be adjusted
+        if (isset($_SESSION['pages'])) {
+            $task_id = $_SESSION['pages'][getSelf()]['task_id'];
+        } else {
+            $task_id = $GLOBALS['task_id'];
+        } // if
+
+        $pattern_id = getPatternId();
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getPkeyNames')) {
+                $pkey_names = $this->custom_processing_object->_cm_getPkeyNames($pkey_names, $task_id, $pattern_id);
+            } // if
+        } // if
+
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $pkey_names = $this->_cm_getPkeyNames($pkey_names, $task_id, $pattern_id);
+        } // if
+
+        return $pkey_names;
+
+    } // getPkeyNamesAdjusted
+
+    // ****************************************************************************
+    function getScrollIndex ()
+    // return current index which points to $scrollarray.
+    {
+        return $this->scrollindex;
+
+    } // getScrollIndex
+
+    // ****************************************************************************
+    function getScrollItem (&$index)
+    // pick out the primary key of the selected item from scrollarray and return
+    // it in $where so that the script can use it in the next getData() method.
+    // NOTE: $index is passed BY REFERENCE as it may be updated.
+    {
+        if ($index > count($this->scrollarray)) {
+            // index is too high, so reduce it
+            $index = count($this->scrollarray);
+        } // if
+
+        if (count($this->scrollarray) > 1) {
+            if (!function_exists('findJump')) {
+                require_once 'include.jump.inc';
+            } // if
+            // find out if this entry is between a pair of jump points
+            $index = findJump($index, $this->scrollindex);
+        } // if
+
+        // replace $where with details from the selected entry in scrollarray
+        if (is_array($this->scrollarray[$index])) {
+            // ensure $where contains nothing but primary key fields
+            $where = array2where($this->scrollarray[$index], $this->getPkeyNames());
+        } else {
+            $where = $this->scrollarray[$index];
+        } // if
+
+        // set values to be used by scrolling logic
+        $this->scrollindex = $index;
+        $this->pageno      = $index;
+        $this->lastpage    = count($this->scrollarray);
+
+        return $where;
+
+    } // getScrollItem
+
+    // ****************************************************************************
+    function getScrollSize ()
+    // return size of current $scrollarray.
+    {
+        return count($this->scrollarray);
+
+    } // getScrollSize
+
+    // ****************************************************************************
+    function getSearch ()
+    // return current selection criteria.
+    {
+        $search = mergeWhere($this->sql_where, $this->sql_search_orig);
+
+        return $search;
+
+    } // getSearch
+
+    // ****************************************************************************
+    function getTableName ()
+    // return the name of this table.
+    {
+        return strtolower($this->tablename);
+
+    } // getTableName
+
+    // ****************************************************************************
+    function getUploadSubdir ()
+    // return the name of this table.
+    {
+        $subdir = null;
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getUploadSubdir')) {
+                $subdir = $this->custom_processing_object->_cm_getUploadSubdir($subdir);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            if (empty($subdir)) {
+                $subdir = $this->_cm_getUploadSubdir($subdir);
+            } // if
+        } // if
+
+        return $subdir;
+
+    } // getUploadSubdir
+
+    // ****************************************************************************
+    function getValRep ($item, $where=null, $orderby=null)
+    // get Value/Representation list from this table.
+    {
+        $item = strtolower($item);
+
+        // call custom method to obtain data as an associative array.
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getValRep')) {
+                $array = $this->custom_processing_object->_cm_getValRep($item, $where, $orderby);
+            } // if
+        } // if
+
+        if (empty($array)) {
+            $array = $this->_cm_getValRep($item, $where, $orderby);
+        } // if
+
+        return $array;
+
+    } // getValRep
+
+    // ****************************************************************************
+    function getWhere ($next_task)
+    // return current selection criteria (may have been amended) before it is
+    // passed to the next task.
+    {
+        $where = mergeWhere($this->where, $this->sql_where);
+
+        $array1 = splitWhereByRow($where);
+        if (count($array1) > 1 AND $this->rows_per_page == 1) {
+            // multiple rows selected, but only one row displayed, so ...
+            // reduce WHERE to current row only
+            $where = array2where($this->fieldarray, $this->getPkeyNamesAdjusted());
+        } // if
+
+        if (!empty($where)) {
+            $pkeynames = $this->getPkeyNames();
+            if (count($pkeynames) == 1) {
+                if ($pkeynames[0] == 'id') {
+                    $where .= " AND rdc_table_name='".get_class($this)."'";
+                } // if
+            } // if
+        } // if
+
+        if (!empty($next_task) AND !preg_match('/^(audit)/i', $next_task['task_id'])) {
+            // obtain any custom adjustments to this string
+            $task_id    = $next_task['task_id'];
+            $pattern_id = $next_task['pattern_id'];
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_getWhere')) {
+                    $where = $this->custom_processing_object->_cm_getWhere($where, $task_id, $pattern_id);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $where = $this->_cm_getWhere($where, $task_id, $pattern_id);
+            } // if
+        } // if
+
+        return $where;
+
+    } // getWhere
+
+    // ****************************************************************************
+    function initialise ($where=null, &$selection=null, $search=null)
+    // perform any initialisation for the current task.
+    // Note that $selection is PASSED BY REFERENCE as it may be updated.
+    {
+        $this->pageno      = null;
+        $this->prev_pageno = null;
+        $this->where       = null;
+
+        $this->sql_groupby_orig = $this->sql_groupby;  // do NOT lose this value!
+
+        $pattern_id = getPatternId();
+
+        if (isset($GLOBALS['settings'])) {
+            if (is_string($GLOBALS['settings'])) {
+                parse_str($GLOBALS['settings'], $GLOBALS['settings']);
+            } // if
+            if (array_key_exists('allow_empty_where', $GLOBALS['settings'])) {
+                $this->allow_empty_where = TRUE;
+            } // if
+        } // if
+
+//        if (empty($this->custom_processing_object)) {
+            $this->_getCustomProcessingObject();
+//        } // if
+
+        if (preg_match('/^(mnu_initial_value_)/i', $this->tablename)) {
+            // do not look for initial values for the initial values tables
+        } else {
+            if ($this->initiated_from_controller) {
+                // obtain any initial values from MNU_INITIAL_VALUE_ROLE/USER table
+                $this->initial_values = $this->_getInitialValues();
+
+                if (preg_match('/^(list|output)/i', $pattern_id)) {
+                    $this->sql_where = $this->_getInitialWhere($this->sql_where);
+                } // if
+            } // if
+        } // if
+
+        if (preg_match('/^(add|upd2|srch)/i', $pattern_id)) {
+            // do not swap $selection with $where
+        } else {
+            if (empty($where) AND !empty($selection)) {
+                // $where is empty, so use $selection instead
+                $where     = $selection;
+                $selection = null;
+            } // if
+        } // if
+
+        if (!empty($this->sql_where)) {
+            // extra WHERE provided in component script
+            if (empty($where)) {
+                $where = $this->sql_where;
+            } else {
+                //$where .= ' AND ' .$this->sql_where;
+                $where = mergeWhere($where, $this->sql_where);
+            } // if
+            //$this->sql_where = null;
+        } // if
+
+        $where2 = $where;  // save for comparison
+
+        if (isset($this->fieldspec['rdcaccount_id'])) {
+            // by default this field should be non-editable
+            $this->fieldspec['rdcaccount_id']['noedit'] = 'y';
+        } // if
+
+        // perform any custom initialisation (optional)
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_initialise')) {
+                $where2 = $this->custom_processing_object->_cm_initialise($where2, $selection, $search);
+            } // if
+        } // if
+        if ($this->errors) return $where2;
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $where2 = $this->_cm_initialise($where2, $selection, $search);
+        } // if
+        if ($this->errors) return $where2;
+
+        if ($where2 != $where) {
+            // this was changed in _cm_initialise(), so use the new version
+            $where = $where2;
+        } else {
+            if (preg_match('/^(add|upd2|srch)/i', $pattern_id)) {
+                // do not swap $selection with $where
+            } else {
+                if (!empty($selection)) {
+                    // $selection takes precedence over $where
+                    $where     = $selection;
+                    $selection = null;
+                } // if
+            } // if
+        } // if
+
+        // convert $where string to an array
+        $fieldarray  = where2array($where, false, false);
+
+        if (!empty($this->alt_language_table)) {
+            if ($GLOBALS['mode'] == 'update') {
+                if ($_SESSION['user_language'] != $_SESSION['default_language']) {
+                    if (!empty($this->alt_language_cols)) {
+                        $screen_fields = getFieldsInScreen($GLOBALS['screen_structure'], $this->zone);
+                        // cannot update text in base table which was obtained from alternative language table
+                        $fieldnames = explode(', ', $this->alt_language_cols);
+                        $display_message = false;
+                        foreach ($fieldnames as $fieldname) {
+                            if       (array_key_exists('noedit', $this->fieldspec[$fieldname])) {
+								// cannot be changed, so do nothing
+                            } elseif (array_key_exists('nodisplay', $this->fieldspec[$fieldname])) {
+                                // cannot be changed, so do nothing
+							} else {
+                                // switch field from editable to non-editable
+								$this->fieldspec[$fieldname]['noedit'] = 'y';
+								$this->noedit_array[$fieldname] = true;
+								if (in_array($fieldname, $screen_fields)) {
+									$display_message = true;
+								} // if
+							} // if
+                        } // foreach
+                        if ($display_message == true) {
+                            $this->messages[] = $this->getLanguageText('sys0180');
+                        } // if
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        $fieldarray2 = $fieldarray;  // save for later comparison
+
+        // change current table configuration (optional)
+        $fieldarray2 = $this->changeConfig($where, $fieldarray2);
+
+        if ($fieldarray2 != $fieldarray) {
+            $where = array2where($fieldarray2, $this->fieldspec);
+        } // if
+
+        if (!empty($this->where)) {
+            // replace with string saved in _cm_initialise()
+            $where = $this->where;
+        } else {
+            if (!empty($where)) {
+                // remove any fields which do not exist in current table to avoid an SQL error
+                $extra = array();
+                if (is_array($this->no_filter_where) AND !empty($this->no_filter_where)) {
+                    $extra = $this->no_filter_where;
+                } // if
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_filterWhere')) {
+                        $extra = $this->custom_processing_object->_cm_filterWhere($extra);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $extra = $this->_cm_filterWhere($extra);
+                } // if
+                $where = filterWhere($where, $this->fieldspec, $this->tablename, $extra, $this);
+            } // if
+        } // if
+        $this->where = $where;
+
+        if ($this->initiated_from_controller == true AND $GLOBALS['mode'] == 'search') {
+            // rebuild array to include '=' and 'LIKE' operators
+            $fieldarray = where2array($where, false, false);
+            // do not allow any $where criteria to be changed
+            foreach ($fieldarray as $fieldname => $fieldvalue) {
+                if (is_integer($fieldname)) {
+                    // this is an index to a string such as 'EXISTS (...)', so delete it
+                    unset($fieldarray[$fieldname]);
+                } elseif (!empty($fieldvalue)) {
+                    if (preg_match('/^(LIKE )/i', ltrim($fieldvalue))) {
+                        // ignore values starting with 'LIKE ' as they come from previous search
+                    } elseif (preg_match('/^(IS NULL|IS NOT NULL|NOT IN|IN[ ]?\(|NOT LIKE)/i', trim($fieldvalue))) {
+                        // not a valid value, so remove it
+                        unset($fieldarray[$fieldname]);
+                    } else {
+                        if (isset($this->fieldspec[$fieldname]) AND array_key_exists('control', $this->fieldspec[$fieldname])) {
+                            // if 'control' is set then only operators of '=' are allowed
+                            if (preg_match('/^=/', trim($fieldvalue))) {
+                                $fieldarray[$fieldname] = stripOperators($fieldvalue);
+                                $this->fieldspec[$fieldname]['noedit'] = 'y';
+                            } else {
+                                unset($fieldarray[$fieldname]);
+                            } // if
+                        } elseif (preg_match('/^=/', trim($fieldvalue))) {
+                            $fieldarray[$fieldname] = stripOperators($fieldvalue);
+                            $this->fieldspec[$fieldname]['noedit'] = 'y';
+                        } else {
+                            $this->fieldspec[$fieldname]['noedit'] = 'y';
+                            if (preg_match('/^(null)$/i', $fieldvalue)) {
+                                // replace 'null' (the string) with NULL (the value)
+                                $fieldarray[$fieldname] = null;
+                            } // if
+                        } // if
+                    } // if
+                } // if
+            } // foreach
+
+            foreach ($this->fieldspec as $fieldname => $fieldspec) {
+                // do not display any fields marked with 'nosearch'
+                if (isset($fieldspec['nosearch'])) {
+                    $this->fieldspec[$fieldname]['nodisplay'] = 'y';
+                } // if
+                // remove 'required' property to make all fields optional
+                if (isset($fieldspec['required'])) {
+                    unset($this->fieldspec[$fieldname]['required']);
+                } // if
+            } // foreach
+
+            // look for start_date and end_date in $fieldspec
+            if (!empty($this->nameof_start_date)) {
+                $start_date = $this->nameof_start_date;
+            } else {
+                $start_date = 'start_date';
+            } // if
+            if (!empty($this->nameof_end_date)) {
+                $end_date = $this->nameof_end_date;
+            } else {
+                $end_date = 'end_date';
+            } // if
+            if (isset($this->fieldspec[$start_date]) AND isset($this->fieldspec[$end_date])) {
+                $this->setCurrentOrHistoric();
+            } // if
+
+            if (!empty($this->sql_search_table)) {
+                $search_table = $this->sql_search_table;
+            } else {
+                $search_table = $this->tablename;
+            } // if
+
+            if (isset($_SESSION['search']) AND is_array($_SESSION['search']) AND isset($_SESSION['search'][$search_table])) {
+                // retrieve previous search criteria and copy into this screen
+                $previous = $_SESSION['search'][$search_table];
+                // convert from string to associative array
+                $previous = where2array($previous, false, false);
+                // remove any field that does not belong in this table
+                foreach ($previous as $field => $value) {
+                    if (is_long($field)) {
+                        // $value is NOT a fieldname, so ignore it
+                        unset($previous[$field]);
+                    } else {
+                        list($operator, $value, $delimiter) = extractOperatorValue($value);
+                        $value = stripslashes($value);
+                        if (!array_key_exists($field, $this->fieldspec)) {
+                            // this field doesn't exist in current table, so remove the value
+                            unset($previous[$field]);
+                        } else {
+                            if (strlen($value) > 1 AND substr_count($value, '%') == 1) {
+                                // remove trailing '%'
+                                $value = rtrim($value, '%');
+                            } // if
+                        } // if
+                        // if field is aready in $fieldarray do NOT overwrite it
+                        if (array_key_exists($field, $fieldarray)) {
+                            unset($previous[$field]);
+                        } else {
+                            if (preg_match('/(=|LIKE)/i', $operator)) {
+                                $previous[$field] = $value;
+                            } elseif (preg_match('/^[a-zA-Z]+/', $operator)) {
+                                // operator is alphabetic, so insert a space between it and the value
+                                $previous[$field] = $operator.' '.$value;
+                            } else {
+                                $previous[$field] = $operator.$value;
+                            } // if
+                        } // if
+                    } // if
+                } // foreach
+                // merge data into a single array
+                $fieldarray = array_merge($previous, $fieldarray);
+            } // if
+
+            if (isset($this->fieldspec['curr_or_hist'])) {
+                if (empty($fieldarray['curr_or_hist'])) {
+                    // field is defined but no value is available, so set it to the default
+                    $fieldarray['curr_or_hist'] = 'C';
+                } // if
+            } // if
+
+            // save, then convert back into string
+            $this->fieldarray = $fieldarray;
+            $where = array2where($fieldarray);
+
+        } // if
+
+        $this->javascript = $this->setJavaScript($this->javascript);
+
+        if (isset($GLOBALS['mode']) AND preg_match('/^(search|list|read)/i', $GLOBALS['mode'])) {
+            // ignore this next bit
+        } else {
+            if ($this->initiated_from_controller) {
+                if (preg_match('/^(workflow|audit)$/i', $this->dbname) OR defined('TRANSIX_NO_WORKFLOW') OR defined('RADICORE_NO_WORKFLOW')) {
+                    // do nothing
+                } else {
+                    if (is_string($where) AND !empty($where)) {
+                        // find out if this task/context is a workitem within a workflow instance
+                        $this->_examineWorkflowInstance($where);
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        return $where;
+
+    } // initialise
+
+    // ****************************************************************************
+    function initialiseFileDownload ($where)
+    // perform any initialisation for the file download operation.
+    {
+        if ($this->skip_getdata) {
+            // do not read database, use $where string instead
+            if (!empty($where)) {
+                $fieldarray = where2array($where);
+                $this->numrows = 1;
+            } // if
+        } else {
+            $fieldarray = $this->getData_raw($where);
+
+            if ($this->numrows < 1) {
+                $this->errors[] = $this->getLanguageText('sys0085'); // 'Nothing retrieved from the database.'
+                return false;
+            } // if
+
+            // change from indexed to associative for first row
+            $fieldarray = $fieldarray[0];
+        } // if
+
+        $this->download_filename = 'download_filename';
+        $this->download_mode     = '';  // 'inline' will disable option to save
+        $this->download_data     = '';  // option to provide file contents from memory, not disk
+        $this->content_type      = '';  // to be supplied when download_data not empty
+
+        // call customisable method in the subclass.
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_initialiseFileDownload')) {
+                $fieldarray = $this->custom_processing_object->_cm_initialiseFileDownload($fieldarray);
+                if (!empty($this->errors)) return false;
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_initialiseFileDownload($fieldarray);
+            if (!empty($this->errors)) return false;
+        } // if
+
+        //if (!isset($fieldarray['ignore_errors'])) {
+        if (empty($this->download_data)) {
+            if (!file_exists($this->download_filename) ) {
+                // 'file does not exist'
+                $this->errors[] = $this->getLanguageText('sys0057', $this->download_filename);
+            } // if
+        } // if
+
+        return $fieldarray;
+
+    } // initialiseFileDownload
+
+    // ****************************************************************************
+    function initialiseFilePicker ($where, $search=null)
+    // perform any initialisation for the filepicker operation.
+    {
+        $fieldarray = where2array($where);
+
+        if (empty($this->picker_subdir)) {
+            $this->picker_subdir  = 'picker';
+        } // if
+        $this->picker_filetypes   = array();
+
+        $this->where      = $where;
+        $this->fieldarray = $fieldarray;
+
+        // call customisable method in the subclass.
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_initialiseFilePicker')) {
+                $fieldarray = $this->custom_processing_object->_cm_initialiseFilePicker($fieldarray, $search);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_initialiseFilePicker($fieldarray, $search);
+        } // if
+
+        if (!empty($this->errors)) {
+            return FALSE;
+        } // if
+
+        if (is_array($fieldarray)) {
+            $this->fieldarray = $fieldarray;
+        } // if
+
+        if (!isset($fieldarray['ignore_errors'])) {
+            if (!is_dir($this->picker_subdir) ) {
+                if (!is_dir(dirname($this->picker_subdir)) ) {
+                    // 'source directory does not exist'
+                    $this->errors[] = $this->getLanguageText('sys0059', $this->picker_subdir);
+                } // if
+            } // if
+        } // if
+
+        // activate the QUICKSEARCH bar for the filename
+        $this->lookup_data['quicksearch_field'] = array('file_name' => getLanguageText('Name'));
+        $this->xsl_params['quicksearch_default'] = 'file_name';
+
+        // turn array of file types into a string
+        $string = '';
+        if (is_string($this->picker_filetypes) AND preg_match('/^(directory)$/i', $this->picker_filetypes)) {
+            return;  // this is valid, so do not adjust it
+        } elseif (is_array($this->picker_filetypes)) {
+            foreach ($this->picker_filetypes as $filetype) {
+                 if (empty($string)) {
+                     $string = "(\." .$filetype;
+                 } else {
+                     $string .= "|\." .$filetype;
+                 } // if
+            } // foreach
+        } // if
+        if (empty($string)) {
+            // default is any file extension
+            $string = '^([^\.])'               // begins with anything but '.'
+                    . '.*'                     // any number of characters
+                    . '(\.[a-zA-Z0-9]+)$';     // ends with '.<anything>'
+        } else {
+            $string .= ')$';
+        } // f
+
+        $this->picker_filetypes = $string;
+
+        return;
+
+    } // initialiseFilePicker
+
+    // ****************************************************************************
+    function initialiseFileUpload ($where)
+    // perform any initialisation for the file upload operation.
+    {
+        if (is_array($where)) {
+            $fieldarray = $where;
+        } else {
+            $fieldarray = where2array($where);
+        } // if
+
+        if (empty($this->upload_subdir)) {
+            $this->upload_subdir  = 'uploadedfiles';
+        } // if
+        $this->upload_filetypes   = array('image/gif');
+        $this->upload_maxfilesize = 1000000;
+        $this->upload_blacklist   = array("\.php.*", "\..*htm.*");
+        $this->allow_multiple     = false;
+
+        // call customisable method in the subclass.
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_initialiseFileUpload')) {
+                $fieldarray = $this->custom_processing_object->_cm_initialiseFileUpload($fieldarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_initialiseFileUpload($fieldarray);
+        } // if
+        if (!empty($this->errors)) {
+            return FALSE;
+        } // if
+
+        $this->where = array2where($fieldarray);
+
+        if (!is_dir($this->upload_subdir) ) {
+            // 'destination directory does not exist'
+            $this->errors[] = $this->getLanguageText('sys0123', $this->upload_subdir);
+        } // if
+
+        return $this->where;
+
+    } // initialiseFileUpload
+
+    // ****************************************************************************
+    function insertMultiple ($fieldarray)
+    // insert multiple records using data in $fieldarray.
+    {
+        $this->errors = array();
+        $errors       = array();
+        $this->no_display_count = false;
+        $count                  = 0;
+
+        reset($fieldarray);   // fix for version 4.4.1
+        if (is_string(key($fieldarray))) {
+            // array is NOT indexed by row, so adjust it
+            $fieldarray = array($fieldarray);
+        } // if
+
+        // turn off feature in getInitialData() method
+        $this->ignore_empty_fields = true;
+
+        if (empty($this->errors)) {
+            // perform any additional custom pre-processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_pre_insertMultiple')) {
+                    $fieldarray = $this->custom_processing_object->_cm_pre_insertMultiple($fieldarray);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_pre_insertMultiple($fieldarray);
+            } // if
+        } // if
+
+        if (empty($this->errors)) {
+            $insert_count   = 0;
+            $update_count   = 0;
+            $delete_count   = 0;
+            $unchange_count = 0;
+            // insert each row one by one
+            foreach ($fieldarray as $rownum => $rowdata) {
+                if (!empty($rowdata)) {
+                    if (array_key_exists('rdc_to_be_updated', $rowdata)) {
+                        //$pageno = $this->pageno;  // save
+                        $fieldarray[$rownum] = $this->updateRecord($rowdata);
+                        if ($fieldarray[$rownum] === false AND $this->lock_wait_count > 0) {
+                            return false;  // failed to lock database, so allow a retry
+                        } // if
+                        if (!empty($this->errors)) {
+                            $errors[$rownum] = $this->errors;  // keep $errors separate for each row
+                        } elseif ($this->numrows > 0) {
+                            $update_count = $update_count + $this->numrows;
+                        } else {
+                            $unchange_count++;
+                        } // if
+                        //$this->pageno = $pageno;  // restore
+
+                    } elseif (array_key_exists('rdc_to_be_deleted', $rowdata)) {
+                        $fieldarray[$rownum] = $this->deleteRecord($rowdata);
+                        if ($fieldarray[$rownum] === false AND $this->lock_wait_count > 0) {
+                            return false;  // failed to lock database, so allow a retry
+                        } // if
+                        if (!empty($this->errors)) {
+                            $errors[$rownum] = $this->errors;  // keep $errors separate for each row
+                        } elseif ($this->numrows > 0) {
+                            $delete_count = $delete_count + $this->numrows;
+                        } else {
+                            $unchange_count++;
+                        } // if
+
+                    } else {
+                        $this->numrows = 0;
+                        $fieldarray[$rownum] = $this->insertRecord($rowdata);
+                        if (!empty($this->errors)) {
+                            $errors[$rownum] = $this->errors;  // keep $errors separate for each row
+                        } else {
+                            $insert_count = $insert_count + $this->numrows;
+                        } // if
+                    } // if
+                } // if
+            } // foreach
+
+            $this->errors  = $errors;
+            $this->numrows = $insert_count;
+
+            if (is_True($this->no_display_count)) {
+                // do not display record count
+            } elseif (empty($errors)) {
+                // '$count records were updated in $tablename'
+                if ($delete_count > 0) {
+                    $this->messages[] = $this->getLanguageText('sys0004', $delete_count, strtoupper($this->tablename));
+                } // if
+                if ($insert_count > 0) {
+                    $this->messages[] = $this->getLanguageText('sys0005', $insert_count, strtoupper($this->tablename));
+                } // if
+                if ($update_count > 0) {
+                    $this->messages[] = $this->getLanguageText('sys0006', $update_count, strtoupper($this->tablename));
+                } // if
+                if ($unchange_count > 0) {
+                    $this->messages[] = $this->getLanguageText('sys0262', $unchange_count, strtoupper($this->tablename));
+                } // if
+            } // if
+
+            if (empty($this->errors)) {
+                // perform any additional custom post-processing
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_post_insertMultiple')) {
+                        $fieldarray = $this->custom_processing_object->_cm_post_insertMultiple($fieldarray);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $fieldarray = $this->_cm_post_insertMultiple($fieldarray);
+                } // if
+            } // if
+
+            // reset $this->fieldarray which was set to a single row by insertRecord()
+            $this->fieldarray = $fieldarray;
+        } // if
+
+        $this->ignore_empty_fields = false;
+
+        return $fieldarray;
+
+    } // insertMultiple
+
+    // ****************************************************************************
+    function insertOrUpdate ($fieldarray)
+    // this will insert or update a group of records.
+    {
+        $this->errors = array();
+        $errors = array();
+
+        reset($fieldarray);   // fix for version 4.4.1
+        if (is_string(key($fieldarray))) {
+            // array is NOT indexed by row, so adjust it
+            $fieldarray = array($fieldarray);
+            $is_assoc = true; // this is an associative array (single row)
+        } else {
+            $is_assoc = false;
+        } // if
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_pre_insertOrUpdate')) {
+                $fieldarray = $this->custom_processing_object->_cm_pre_insertOrUpdate($fieldarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_pre_insertOrUpdate($fieldarray);
+        } // if
+        if ($this->errors) {
+            return $fieldarray;
+        } // if
+
+        // get array of fieldnames in the primary key
+        $pkeynames = $this->getPkeyNames();
+
+        $insert_count   = 0;
+        $update_count   = 0;
+        $delete_count   = 0;
+        $unchange_count = 0;
+
+        foreach ($fieldarray as $rownum => $rowdata) {
+
+            // check if entire primary key (or candidate key) has been supplied
+            list($where, $errors) = isPkeyComplete($rowdata, $pkeynames, $this->unique_keys);
+            if (empty($where)) {
+                // not complete, so cannot perform lookup, record must be inserted
+                $count = 0;
+                $errors = array();
+            } else {
+                // find out if this record currently exists or not
+                $count = $this->getCount($where);
+                if ($count === false AND $this->lock_wait_count > 0) {
+                    return false;  // failed to lock database, so allow a retry
+                } // if
+            } // if
+
+            if ($count == 0) {
+                // record does not exist, so create it
+                $this->no_duplicate_error = true;  // don't error if this is a duplicate
+                $rowdata = $this->insertRecord($rowdata);
+                if ($this->numrows > 0) {
+                    $insert_count++;
+                } // if
+            } elseif (array_key_exists('rdc_to_be_deleted', $rowdata)) {
+                $rowdata = $this->deleteRecord($rowdata);
+                if ($this->numrows > 0) {
+                    $update_count++;
+                } else {
+                    $unchange_count++;
+                } // if
+            } else {
+                // record already exists, so update it
+                $rowdata = $this->updateRecord($rowdata);
+                if ($rowdata === false AND $this->lock_wait_count > 0) {
+                    return false;  // failed to lock database, so allow a retry
+                } // if
+                if ($this->numrows > 0) {
+                    $update_count++;
+                } else {
+                    $unchange_count++;
+                } // if
+            } // if
+            $this->no_duplicate_error = false;
+
+            if ($this->errors) {
+                if ($is_assoc) {
+                    $errors = $this->errors;
+                } else {
+                    $errors[$rownum] = $this->errors;
+                } // if
+            } // if
+
+            $fieldarray[$rownum] = $rowdata;
+
+        } // foreach
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_post_insertOrUpdate')) {
+                $fieldarray = $this->custom_processing_object->_cm_post_insertOrUpdate($fieldarray, $insert_count, $update_count);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_post_insertOrUpdate($fieldarray, $insert_count, $update_count);
+        } // if
+
+        if (is_True($this->no_display_count)) {
+            // do not display record count
+        } else {
+            // "X records inserted, X records updated in <tablename>"
+            $this->messages = $this->getLanguageText('sys0098', $insert_count, $update_count, strtoupper($this->tablename));
+        } // if
+
+        $this->insert_count   = $insert_count;
+        $this->update_count   = $update_count;
+        $this->unchange_count = $unchange_count;
+        $this->errors         = $errors;
+
+        if ($is_assoc) {
+            return $fieldarray[0]; // return an associative array
+        } else {
+            return $fieldarray;    // return an indexed array
+        } // if
+
+    } // insertOrUpdate
+
+    // ****************************************************************************
+    function insertRecord ($fieldarray)
+    // insert a record using contents of $fieldarray.
+    {
+        $this->errors  = array();   // initialise
+        $this->numrows = 0;
+
+        if (!empty($fieldarray)) {
+            reset($fieldarray);   // fix for version 4.4.1
+            if (!is_string(key($fieldarray))) {
+                // input is indexed by row, so extract data for 1st row only
+                $fieldarray = $fieldarray[key($fieldarray)];
+            } // if
+        } // if
+
+        // shift all field names to lower case
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        if (!empty($this->initial_values)) {
+            // insert any initial values obtained from MNU_INITIAL_VALUE_ROLE/USER table
+            foreach ($this->initial_values as $key => $value) {
+                if (empty($fieldarray[$key])) {
+                    // current value is empty, so overwrite with initial value
+                    $fieldarray[$key] = $value;
+                } // if
+            } // foreach
+        } // if
+
+        // redo any custom initialisation
+        $this->sqlSelectInit();
+
+        foreach ($this->primary_key as $pkey) {
+            if (!empty($this->retry_on_duplicate_key) AND $this->retry_on_duplicate_key == $pkey) {
+                // this is not part of a foreign key
+                if ($this->fieldspec[$pkey]['type'] == 'numeric') {
+                    if (isset($this->fieldspec[$pkey]['precision']) AND $this->fieldspec[$pkey]['precision'] == 38) {
+                        if (PARTICIPANT_ID != '000000' AND strlen($fieldarray[$pkey]) < 26) {
+                            // id has already been formatted to exclude PARTICIPANT_ID, so remove it and rebuild it
+                            $fieldarray[$pkey] = null;
+                        } // if
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_getInitialData')) {
+                $fieldarray = $this->custom_processing_object->_cm_getInitialData($fieldarray);
+                if (!is_array($fieldarray)) $fieldarray = array();
+            } // if
+        } // if
+        if (empty($this->errors)) {
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_getInitialData($fieldarray);
+                if (!is_array($fieldarray)) $fieldarray = array();
+            } // if
+        } // if
+
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        if (empty($this->errors)) {
+            // perform any custom pre-insert processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_pre_insertRecord')) {
+                    $fieldarray = $this->custom_processing_object->_cm_pre_insertRecord($fieldarray);
+                } // if
+            } // if
+            if (empty($this->errors)) {
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $fieldarray = $this->_cm_pre_insertRecord($fieldarray);
+                } // if
+            } // if
+        } // if
+
+        if ($this->initiated_from_controller === TRUE AND $this->no_convert_timezone === FALSE) {
+            if (!empty($fieldarray) AND !empty($GLOBALS['screen_structure'])) {
+                // deal with datetimes from screen input which may be in different timezone
+                $fieldarray = $this->convertTimeZone($fieldarray, $this->fieldspec);
+            } // if
+        } // if
+
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        $insertarray = $fieldarray;  // copy to temporary area
+
+        if (!empty($insertarray)) {
+            if (isset($this->fieldspec['rdcaccount_id'])) {
+                if (isset($this->fieldspec['rdcaccount_id']['auto_increment'])) {
+                    // new value for rdcaccount_id is being created, so don't supply a value
+                    unset($insertarray['rdcaccount_id']);
+                } elseif (!empty($insertarray['rdcaccount_id'])) {
+                    // value has already been supplied (from a COPY?) so don't change it
+                    $condition = true;
+                } else {
+                    if (empty($_SESSION['rdcaccount_id'])) {
+                        $condition = true;  // leave current value untouched
+                    } else {
+                        $insertarray['rdcaccount_id'] = $_SESSION['rdcaccount_id'];
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (empty($this->errors) AND is_array($insertarray) AND !empty($insertarray)) {
+            // perform standard declarative checks on input array
+            // NOTE: this produces another array with data formatted for the database
+            $insertarray = $this->_validateInsertPrimary($insertarray);
+            // replace any fields which may have been modified during the validation process
+            $insertarray = array_merge($fieldarray, $insertarray);
+        } // if
+
+        if (empty($this->errors)) {
+            if ($this->skip_validation OR isset($insertarray['rdc_skip_validation'])) {
+                // do not perform any custom validation
+            } elseif (is_array($insertarray) AND !empty($insertarray)) {
+                // perform any custom pre-insert validation (1)
+                $insertarray = $this->custom_commonValidation($insertarray);
+
+                if (empty($this->errors)) {
+                    // perform any custom pre-insert validation (2)
+                    $insertarray = $this->custom_validateInsert($insertarray);
+                } // if
+            } // if
+        } // if
+
+        if (is_array($insertarray) AND !empty($insertarray)) {
+            $insertarray = array_change_key_case($insertarray, CASE_LOWER);
+        } // if
+
+        if (empty($this->errors)) {
+            if (is_array($insertarray) AND !empty($insertarray)) {
+                // perform any last minute adjustments
+                foreach ($this->fieldspec as $field => $spec) {
+                    if (array_key_exists($field, $insertarray)) {
+                        if (array_key_exists('autoinsert', $spec) OR array_key_exists('autoupdate', $spec)) {
+                            if (isset($GLOBALS['mode']) AND preg_match('/^(blockchain)$/i', $GLOBALS['mode'])) {
+                                // data comes from blockchain, so do not remove existing values
+                            } else {
+                                // remove any autoinsert or autoupdate fields
+                                unset($insertarray[$field]);
+                            } // if
+                        } // if
+                        if (!empty($insertarray[$field])) {
+                            if (preg_match('/(decimal|numeric|float|real|double)/i', $spec['type'])) {
+                                if (!empty($spec['precision']) AND $spec['precision'] == 38 AND $spec['scale'] == 0) {
+                                    // leave this number alone
+                                } else {
+                                    // remove thousands separator and ensure decimal point is '.'
+                                    $insertarray[$field] = number_unformat($insertarray[$field], '.', ',');
+                                    if (array_key_exists('scale', $spec)) {
+                                        // round to the correct number of decimal places
+                                        $insertarray[$field] = number_format($insertarray[$field], $spec['scale'], '.', '');
+                                    } // if
+                                } // if
+                            } // if
+                        } // if
+                    } // if
+                } // foreach
+                // perform standard insert using validated data
+                $inserted = $this->_dml_insertRecord($insertarray);
+                // replace any non-database fields not included in the insert
+                $insertarray = array_merge($insertarray, $inserted);
+            } // if
+        } // if
+
+        // merge temporary area with original input
+        if (is_array($insertarray) AND !empty($insertarray)) {
+            $fieldarray = array_merge($fieldarray, $insertarray);
+        } // if
+
+        //if (empty($this->errors) AND is_array($insertarray) AND !empty($insertarray)) {
+        if (empty($this->errors)) {
+            // perform any custom post-insert processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_post_insertRecord')) {
+                    $fieldarray = $this->custom_processing_object->_cm_post_insertRecord($fieldarray);
+                } // if
+            } // if
+            if (empty($this->errors)) {
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $fieldarray = $this->_cm_post_insertRecord($fieldarray);
+                } // if
+            } // if
+
+            $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+//            if ($this->numrows > 0 AND !empty($this->alt_language_table) AND $_SESSION['logon_user_id'] != 'INTERNET') {
+//                // ensure that default entries exist for all supported languages
+//                $dbobject = RDCsingleton::getInstance($this->alt_language_table);
+//                $data = array();
+//                $data = $dbobject->getLanguageEntries($data, $fieldarray, $this->alt_language_cols);
+//                if ($dbobject->errors) {
+//                    //$this->errors = array_merge($this->errors, $dbobject->errors);
+//                    $this->errors[$dbobject->getClassName()] = $dbobject->errors;
+//                } // if
+//                unset($dbobject);
+//            } // if
+        } // if
+
+        if (empty($this->errors)) {
+            $GLOBALS['blockchain_data'] = $this->_checkBlockchainTrigger($GLOBALS['blockchain_data'],
+                                                                         __FUNCTION__,
+                                                                         $fieldarray);
+        } // if
+
+        // turn this flag off
+        $this->skip_validation = FALSE;
+
+        // store updated $fieldarray within this object
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // insertRecord
+
+    // ****************************************************************************
+    function lookup_with_participant_id ($column_name, $where=null)
+    // look up the next available number with this participant_id as the prefix
+    {
+        // test that DOM extension has been loaded
+        if (!extension_loaded('GMP')) {
+            // 'GMP functions are not available.'
+            $this->errors[] = getLanguageText('sys0070', 'GMP');
+            return false;
+        } // if
+
+        if (!defined('PARTICIPANT_ID')) {
+            // "PARTICIPANT_ID has not been defined in config.inc file - cannot continue"
+            $this->errors[] = getLanguageText('sys0271');
+            return false;
+        } // if
+
+        if (!preg_match('/[0-9]{6,12}/', PARTICIPANT_ID)) {
+            // "PARTICIPANT_ID can only contain 6-12 numeric digits - cannot continue"
+            $this->errors[] = getLanguageText('sys0272');
+            return false;
+        } // if
+
+        if (PARTICIPANT_ID == '000000') {
+            // participant_id is all zeroes, so act as if does not exist
+            if (!empty($where)) {
+                $query = "SELECT MAX($column_name) FROM {$this->tablename} WHERE $where";
+            } else {
+                $query = "SELECT MAX($column_name) FROM {$this->tablename}";
+            } // if
+        } else {
+            // the number is DECIMAL(38) where the first 12 digits are the participant_id,
+            // which leaves 26 digits remaining
+            $pad_length = strlen(PARTICIPANT_ID) + 26;
+            $column_lookup = str_pad(PARTICIPANT_ID, $pad_length, '_', STR_PAD_RIGHT);
+
+            if (!empty($where)) {
+                $query = "SELECT MAX($column_name) FROM {$this->tablename} WHERE $column_name LIKE '$column_lookup' AND $where";
+            } else {
+                $query = "SELECT MAX($column_name) FROM {$this->tablename} WHERE $column_name LIKE '$column_lookup'";
+            } // if
+        } // if
+
+        $count = $this->getCount($query);
+        //$next_value = $next_value + $count + 1;  // this will not work on a number this large
+        if ($count == 0) {
+            $next_value = str_pad(PARTICIPANT_ID, $pad_length, '0', STR_PAD_RIGHT);
+            $sum = gmp_add($next_value, $count + 1);
+        } else {
+            $sum = gmp_add($count, 1);
+        } // if
+        $next_value = gmp_strval($sum);
+        $this->retry_on_duplicate_key = $column_name;
+
+        return $next_value;
+
+    } // lookup_with_participant_id
+
+    // ****************************************************************************
+    function multiQuery ($query)
+    // process one or more SQL queries in one go.
+    // $query may be a string (single query) or an array (multiple queries).
+    {
+        $result = $this->executeQuery($query);
+
+        return $result;
+
+    } // multiQuery
+
+    // ****************************************************************************
+    function output_Multi ($zone, $current_row)
+    // obtain a number of rows (zero, 1 or more) of data for this named area.
+    {
+        $newdata = array();
+
+        // start by looking in an optional custom object
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_output_multi')) {
+                $newdata = $this->custom_processing_object->_cm_output_multi($zone, $current_row);
+                if (!is_array($newdata)) {
+                    $newdata = array();  // treat this as 'no data'
+                } elseif (count($newdata) == 1 AND count($newdata[0]) == 1 AND isset($newdata[0]['dummy'])) {
+                    $newdata = array();  // treat this combination as 'no data' and set to empty
+                } // if
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            if (empty($newdata)) {
+                // nothing returned from custom object, so call method in standard object
+                $newdata = $this->_cm_output_multi($zone, $current_row);
+            } // if
+        } // if
+
+        return $newdata;
+
+    } // output_Multi
+
+    // ****************************************************************************
+    function performAction ($action, $row)
+    // perform an action on the specified row
+    {
+        $row = (int)$row;
+        if ($row < 0 OR $row > count($this->fieldarray)-1) {
+            return;  // row number out of bounds, so ignore
+        } // if
+
+        $fieldarray = $this->fieldarray[$row];
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_performAction')) {
+                $fieldarray = $this->custom_processing_object->_cm_performAction($fieldarray, $action);
+            } // if
+        } // if
+        if (empty($this->errors)) {
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_performAction($fieldarray, $action);
+            } // if
+        } // if
+
+        return;
+
+    } // performAction
+
+    // ****************************************************************************
+    function popupCall (&$popupname, $where, &$script_vars, $fieldarray, &$settings, $offset=null)
+    // processing before a popup form is called.
+    // NOTE: $popupname is passed BY REFERENCE as it may be altered.
+    // NOTE: $script_vars is passed BY REFERENCE as it may be altered.
+    // NOTE: $offset identifies the row number (if there is more than one).
+    {
+        $this->errors = array();  // clear any previous errors
+
+        // clear any previous selection
+        $script_vars['selection'] = NULL;
+
+        // the default is to select only one entry
+        $settings_array['select_one'] = true;
+
+        if (!empty($where)) {
+            $where_array = where2array($where);
+            foreach ($where_array as $where_field => $where_value) {
+                if (!isset($fieldarray[$where_field]) OR empty($fieldarray[$where_field])) {
+                    $fieldarray[$where_field] = $where_value;
+                } // if
+            } // foreach
+        } // if
+
+        // allow $where and $settings to be altered
+        $popupname = strtolower($popupname);
+        if (is_object($this->custom_processing_object)) {
+            // call method which is specific to current project
+            if (method_exists($this->custom_processing_object, '_cm_popupCall')) {
+                $where = $this->custom_processing_object->_cm_popupCall($popupname, $where, $fieldarray, $settings_array, $offset);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            if (empty($errors)) {
+                // call standard method
+                $where = $this->_cm_popupCall($popupname, $where, $fieldarray, $settings_array, $offset);
+            } // if
+        } // if
+
+        //$script_vars['where'] = $where;  // do NOT update this value
+
+        $settings = '';
+        // convert $settings array into a string
+        foreach ($settings_array as $key => $value) {
+            if (is_bool($value)) {
+                if ($value === true) {
+                    $value = 'TRUE';
+                } else {
+                    $value = 'FALSE';
+                } // if
+            } // if
+            if (empty($settings)) {
+                $settings = "$key=$value";
+            } else {
+                $settings .= "&$key=$value";
+            } // if
+        } // foreach
+
+        return $where;
+
+    } // popupCall
+
+    // ****************************************************************************
+    function popupReturn ($fieldarray, $return_from, $selection, $popup_offset=null, $return_files=null)
+    // process a selection returned from a popup screen.
+    // $fieldarray contains the record data when the popup button was pressed.
+    // $return_from identifies which popup screen was called.
+    // $selection contains a string identifying what was selected in that popup screen.
+    // $popup_offset identifies the row number (if there is more than one).
+    {
+        $this->errors = array();
+
+        if (empty($selection)) {
+            return $fieldarray;  // nothing has been selected, so there is nothing to do
+        } // if
+
+        $return_from = strtolower($return_from);
+
+        $this->row_offset = null;
+
+        reset($fieldarray);   // fix for version 4.4.1
+        if (!empty($fieldarray) and !is_string(key($fieldarray))) {
+            if (isset($popup_offset) AND is_numeric($popup_offset)) {
+                // already contains row number
+            } else {
+                // extract first row
+                $popup_offset = key($fieldarray);
+            } // if
+            $single_row = $fieldarray[$popup_offset];
+            $this->row_offset = $popup_offset;
+        } else {
+            // not indexed by row, so use entire array
+            $single_row = $fieldarray;
+        } // if
+
+        if (substr_count($selection, '=') == 0) {
+            $found = false;
+            // selection is not in format 'key=value', so it must be from a filepicker
+            foreach ($this->fieldspec as $field => $spec) {
+                if (isset($spec['task_id'])) {
+                    if ($spec['task_id'] == $return_from) {
+                        $found = true;
+                        if (!is_null($selection)) {
+                            // now empty the description field obtained from the foreign table
+                            $single_row[$field] = $selection;
+                        } // if
+                        break;
+                    } // if
+                } // if
+            } // foreach
+            if ($found) {
+                // deal with any processing after a value has been returned
+                $select_array[$field] = $selection;
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_popupReturn')) {
+                        // call method which is specific to current project
+                        $single_row = $this->custom_processing_object->_cm_popupReturn($single_row, $return_from, $select_array, $return_files);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    // call standard method
+                    $single_row = $this->_cm_popupReturn($single_row, $return_from, $select_array, $return_files);
+                } // if
+            } // if
+            if (isset($popup_offset) AND is_numeric($popup_offset)) {
+                // insert single row into array
+                $fieldarray[$popup_offset] = $single_row;
+            } else {
+                // not indexed by row, so replace entire array
+                $fieldarray = $single_row;
+            } // if
+            $this->fieldarray = $fieldarray;
+            $this->row_offset = null;
+            return $fieldarray;
+        } // if
+
+        $rows = splitWhereByRow($selection);
+        if (count($rows) == 1) {
+            // single row, so create an associative array
+            $select_array = where2array($rows[0]);
+        } else {
+            // multiple rows, so create an indexed array
+            foreach ($rows as $rowdata) {
+                $select_array[] = where2array($rowdata);
+            } // foreach
+        } // if
+
+        // find entry in $fieldspec which uses this popup form
+        $found = false;
+        foreach ($this->fieldspec as $field => $spec) {
+            if (isset($spec['task_id'])) {
+                if ($spec['task_id'] == $return_from) {
+                    $found = true;
+                    if (isset($spec['foreign_field']) AND array_key_exists($spec['foreign_field'], $single_row)) {
+                        // remove the description field obtained from the foreign table
+                        $single_row[$spec['foreign_field']] = null;
+                    } elseif (array_key_exists($field, $single_row)) {
+                        $single_row[$field] = null;
+                    } // if
+                    // deal with any processing after a value has been returned
+                    if (is_object($this->custom_processing_object)) {
+                        if (method_exists($this->custom_processing_object, '_cm_popupReturn')) {
+                            // call method which is specific to current project
+                            $single_row = $this->custom_processing_object->_cm_popupReturn($single_row, $return_from, $select_array, $return_files);
+                        } // if
+                    } // if
+                    if ($this->custom_replaces_standard) {
+                        $this->custom_replaces_standard = false;
+                    } else {
+                        // call standard method
+                        $single_row = $this->_cm_popupReturn($single_row, $return_from, $select_array, $return_files);
+                    } // if
+
+                    if (is_array($select_array) AND is_long(key($select_array))) {
+                        // array is indexed with multiple rows, so convert to associative for a single row
+                        $select_array_assoc = where2array($select_array[0]);
+                    } else {
+                        $select_array_assoc = $select_array;
+                    } // if
+
+                    // look for any differences between the fieldname(s) returned by the popup
+                    // and the fieldname(s) used in this table
+                    foreach ($this->parent_relations as $parent) {
+                        if (array_key_exists($field, $parent['fields'])) {
+                            foreach ($parent['fields'] as $fld_child => $fld_parent) {
+                                if ($fld_child != $fld_parent) {
+                                    if (isset($select_array_assoc[$fld_parent])) {
+                                        // convert the parent field name to the child field name
+                                        $select_array_assoc[$fld_child] = $select_array_assoc[$fld_parent];
+                                        unset($select_array_assoc[$fld_parent]);
+                                    } // if
+                                } // if
+                            } // foreach
+                            break;
+                        } // if
+                    } // foreach
+
+                    if (is_array($select_array_assoc) AND !empty($select_array_assoc)) {
+                        // copy FOREIGN_FIELD to this field
+                        if (!empty($spec['foreign_field']) AND is_string($spec['foreign_field'])) {
+                            if (array_key_exists($spec['foreign_field'], $select_array_assoc)) {
+                                $single_row[$field] = $select_array_assoc[$spec['foreign_field']];
+                                unset($select_array_assoc[$spec['foreign_field']]);
+                            } // if
+                        } // if
+                    } // if
+
+                    // merge $selection with $fieldarray
+                    if (is_array($select_array_assoc) AND !empty($select_array_assoc)) {
+                        $single_row = array_merge($single_row, $select_array_assoc);
+                    } // if
+                    break;
+                } // if
+            } // if
+        } // foreach
+
+        if ($found) {
+            if ($GLOBALS['mode'] == 'insert') {
+                // redo any custom initialisation
+                $this->sqlSelectInit();
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_getInitialData')) {
+                        $single_row = $this->custom_processing_object->_cm_getInitialData($single_row);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $single_row = $this->_cm_getInitialData($single_row);
+                } // if
+            } // if
+
+            $single_row = array_change_key_case($single_row, CASE_LOWER);
+
+            // retrieve data from foreign (parent) tables
+            $single_row = $this->getForeignData($single_row);
+
+            //if ($GLOBALS['mode'] != 'search') {
+                // perform any post-popup processing
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_post_popupReturn')) {
+                        $single_row = $this->custom_processing_object->_cm_post_popupReturn($single_row, $return_from, $select_array, $return_files);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $single_row = $this->_cm_post_popupReturn($single_row, $return_from, $select_array, $return_files);
+                } // if
+            //} // if
+
+            // retrieve data from foreign (parent) tables
+            //$single_row = $this->getForeignData($single_row);
+        } // if
+
+        $single_row = array_change_key_case($single_row, CASE_LOWER);
+
+        if (isset($popup_offset) AND is_numeric($popup_offset)) {
+            if (!is_long(key($fieldarray))) {
+                $fieldarray = array();  // remove existing associative array
+            } // if
+            // insert single row into array
+            $fieldarray[$popup_offset] = $single_row;
+        } else {
+            // not indexed by row, so replace entire array
+            $fieldarray = $single_row;
+        } // if
+
+        // see if any additional data is required or needs to be changed
+        $fieldarray = $this->getExtraData($fieldarray, false, true);
+
+        $this->row_offset = null;
+
+        // store updated $fieldarray within this object
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // popupReturn
+
+    // ****************************************************************************
+    function post_fileUpload ($filename, $filesize)
+    // perform processing after a file has been uploaded.
+    {
+        $this->errors = array();
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_post_fileUpload')) {
+                $this->custom_processing_object->resize_array       = $this->resize_array;
+                $this->custom_processing_object->upload_subdir      = $this->upload_subdir;
+                $this->custom_processing_object->upload_filetypes   = $this->upload_filetypes;
+                $this->custom_processing_object->upload_maxfilesize = $this->upload_maxfilesize;
+                $filename = $this->custom_processing_object->_cm_post_fileUpload($filename, $filesize);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $filename = $this->_cm_post_fileUpload($filename, $filesize);
+        } // if
+
+        return $filename;
+
+    } // post_fileUpload
+
+    // ****************************************************************************
+    function post_search ($search, $selection)
+    // perform final processing before $search is returned to the calling program
+    {
+        $this->errors = array();
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_post_search')) {
+                $search = $this->custom_processing_object->_cm_post_search($search, $selection);
+            } // if
+        } // if
+
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $search = $this->_cm_post_search($search, $selection);
+        } // if
+
+        return $search;
+
+    } // post_search
+
+    // ****************************************************************************
+    function putFileBody ($fieldarray, $body)
+    // if this row is associated with a file then its contents will be returned
+    // base64_encoded so that it can be written to where it belongs.
+    // (this is the reverse of the getFileBody() operation)
+    {
+        if (empty($body)) {
+            return false;
+        } // if
+        if (is_array($body)) {
+            $encoding = key($body);
+            $body = $body[$encoding];
+        } // if
+
+        $body = base64_decode($body);
+
+        $result = $this->_cm_putFileBody($fieldarray, $body);
+
+        return $result;
+
+    } // putFileBody
+
+    // ****************************************************************************
+    function quitButton ()
+    // perform any processing when the QUIT button is pressed
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_quitButton')) {
+                $this->custom_processing_object->_cm_quitButton();
+            } // if
+        } // if
+
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $this->_cm_quitButton();
+        } // if
+
+        return;
+
+    } // quitButton
+
+    // ****************************************************************************
+    function reInitialise ($fieldarray, $where)
+    // re-initialise $fieldarray after previous insert
+    {
+        // nullify all fields identified in $fieldspec
+        foreach ($this->fieldspec as $fieldname => $spec) {
+            $fieldarray[$fieldname] = NULL;
+        } // foreach
+
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // reInitialise
+
+    // ****************************************************************************
+    function reset ($where=null, $keep_orderby=false)
+    // reset all screen settings before starting afresh.
+    {
+        $pattern_id = getPatternId();
+
+        $this->setSqlSearch(null);
+
+        if (!is_True($keep_orderby)) {
+            $this->setOrderBy(null);
+            $this->setOrderBySeq(null);
+        } // if
+
+        $this->fieldarray = array();
+        $null = $this->initialise($where);
+
+        if (preg_match('/filepicker/i', $pattern_id)) {
+            $this->initialiseFilePicker($where);
+        } // if
+
+        $this->setPageNo(1);
+
+        $this->_cm_reset($where);
+
+        return $where;
+
+    } // reset
+
+    // ****************************************************************************
+    function restart ($return_from, $return_action, $return_string=null, $return_files=null)
+    // script is being restarted after running a child form, so check for further action.
+    {
+        $pattern_id = getPatternId();
+        $zone       = $this->zone;
+
+        if ($return_action == 'search' AND empty($return_string)) {
+            $this->setSqlSearch(null);
+        } // if
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_restart')) {
+                $this->custom_processing_object->_cm_restart($pattern_id, $zone, $return_from, $return_action, $return_string, $return_files);
+            } // if
+        } // if
+
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $this->_cm_restart($pattern_id, $zone, $return_from, $return_action, $return_string, $return_files);
+        } // if
+
+        return;
+
+    } // restart
+
+    // ****************************************************************************
+    function rollback ()
+    // rollback this transaction due to some sort of error.
+    {
+        // remove entries created by this task
+        removeFromScriptSequence();
+
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $result = $DML->rollback($this->dbname_server);
+
+        $GLOBALS['transaction_has_started'] = FALSE;
+
+        return $result;
+
+    } // rollback
+
+    // ****************************************************************************
+    function scriptNext ($task_id, $where=null, $selection=null, $task_array=array())
+    // suspend the current task before juming to a new task.
+    {
+        if ($GLOBALS['transaction_has_started'] == TRUE) {
+            $errors = $this->commit();
+            if ($errors) {
+                $this->rollback();
+                return false;
+            } // if
+        } // if
+
+        scriptNext($task_id, $where, $selection, $task_array);
+
+    } // scriptNext
+
+    // ****************************************************************************
+    function scriptPrevious ($errors=null, $messages=NULL, $action=NULL, $instruction=NULL)
+    // go back to the previous script in the current hierarchy.
+    // This version will commit any outstanding database updates.
+    {
+        if ($GLOBALS['transaction_has_started'] == TRUE) {
+            $errors = $this->commit();
+            if ($errors) {
+                $this->rollback();
+                return false;
+            } // if
+        } // if
+
+        scriptPrevious($errors, $messages, $action, $instruction);
+
+    } // scriptPrevious
+
+    // ****************************************************************************
+    function selectDB ($dbname)
+    // select a different database via the current connection.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $result = $DML->selectDB($dbname);
+
+        return $result;
+
+    } // selectDB
+
+    // ****************************************************************************
+    function sendEmail ($template_id, $where, &$input_data)
+    // send an email to the customer using data from the current object.
+    // $template_id identifies the email text into which user values can be inserted.
+    // Note: $input_data is passed BY REFERENCE as it may be altered
+    {
+        $keys = where2array($where);
+
+        if (empty($keys['party_id'])) {
+            // external party_id may have different names
+            if (!empty($input_data['party_id_bill_to'])) {
+                $keys['party_id'] = $input_data['party_id_bill_to'];
+            } elseif (!empty($input_data['customer_id'])) {
+                $keys['party_id'] = $input_data['customer_id'];
+            } elseif (!empty($input_data['supplier_id'])) {
+                $keys['party_id'] = $input_data['supplier_id'];
+            } elseif (!empty($input_data['party_id'])) {
+                $keys['party_id'] = $input_data['party_id'];
+            } elseif (!empty($input_data['quote_id']) AND !empty($input_data['party_id_issuer'])) {
+                $keys['party_id'] = $input_data['party_id_issuer'];
+            } // if
+        } // if
+
+        if (empty($keys['party_id'])) {
+            if (!empty($input_data['object_id'])) {
+                $dbobject = RDCsingleton::getInstance($input_data['object_id']);
+                $data = $dbobject->getData($input_data['context']);
+                if (!empty($data)) {
+                    $data = $data[0];
+                    if (!empty($data['party_id'])) {
+                        $keys['party_id'] = $data['party_id'];
+                    } else {
+                        // must have a different name, so ask object to work it out
+                        $keys['party_id'] = $dbobject->getPartyId_for_email($data);
+                    } // if
+                } // if
+                unset($dbobject);
+            } // if
+        } // if
+
+        $party_data = array();
+        if (!empty($keys['party_id'])) {
+            // fetch data for this party
+            $dbobject1 = RDCsingleton::getInstance('party');
+            $where1 = "party_id='{$keys['party_id']}'";
+            $party_data = $dbobject1->getData($where1);
+            if (!empty($party_data)) {
+                $party_data = $party_data[0];
+                if (empty($party_data['email']) AND $party_data['party_type'] == 'ORG') {
+                    $dbobject2 = RDCsingleton::getInstance('party_relationship');
+                    $relation = $dbobject2->getData($where1);
+                    if (!empty($relation)) {
+                        $relation = $relation[0];
+                        if ($relation['role_type_id'] == 'PER' AND $relation['role_subtype_id'] == 'CUSTCONT') {
+                            $contact_data = $dbobject1->getData("party_id='{$relation['party_id']}'");
+                            if (!empty($contact_data)) {
+                                $contact_data = $contact_data[0];
+                                $party_data['email'] = $contact_data['email'];
+                            } // if
+                        } // if
+                    } // if
+                    unset($dbobject2);
+                } // if
+                // identify language_id for this party for retrieval of database text
+                if (!empty($party_data['language_id'])) {
+                    $GLOBALS['party_language'] = $party_data['language_id'];
+                } else {
+                    $GLOBALS['party_language'] = $_SESSION['default_language'];
+                } // if
+            } // if
+            unset($dbobject1);
+        } // if
+
+        $attachments = null;
+        // get optional values to be inserted into email message template
+        $params = $this->getEmailParams($template_id, $where, $input_data, $party_data);
+        if ($this->errors) {
+            $input_data['EMAIL_PARAMS']  = $params;
+            $this->errors['OBJECT']      = $this->tablename;
+            $this->errors['FILE']        = __FILE__;
+            $this->errors['FUNCTION']    = __FUNCTION__;
+            $this->errors['LINE']        = __LINE__;
+            return false;
+        } // if
+
+        if (array_key_exists('rdc_email_cancelled', $params)) {
+            // this email has been cancelled
+            return 'rdc_email_cancelled';
+        } // if
+        if (!empty($params['attachments'])) {
+            // extract and remove any attachments
+            $attachments = $params['attachments'];
+            unset($params['attachments']);
+        } // if
+
+        if (!empty($params['object_id'])) {
+            // use what has been provided
+        } else {
+            // save extra data in case this template requires a follow-up
+            $dirname = $this->dirname;
+            $basename = basename($dirname);
+            while ($basename == 'classes'){
+                $dirname = dirname($dirname);
+                $basename = basename($dirname);
+            } // while
+            $classname = $this->getClassName();
+            if (substr($classname, 0, 3) == 'cp_') {
+                $classname = substr($classname, 3);  // strip 'cp_' prefix
+            } // if
+            $params['object_id'] = $basename.'/'.$classname;
+        } // if
+        $params['context']   = $where;
+
+        if (array_key_exists('rdc_no_followup', $input_data)) {
+            $params['rdc_no_followup'] = true;
+        } // if
+
+        // use template object to send this message
+        $dbobject3 = RDCsingleton::getInstance('email_template');
+        $result = $dbobject3->sendEmailTemplate($template_id, $keys, $params, $attachments);
+        if ($dbobject3->errors) {
+            $this->errors[$dbobject3->getClassName()] = $dbobject3->errors;
+        } // if
+        if ($dbobject3->messages) {
+            $this->messages = array_merge($this->messages, $dbobject3->messages);
+        } // if
+
+        return $result;
+
+    } // sendEmail
+
+    // ****************************************************************************
+    function setAction ($action)
+    // process the designated action within the current object.
+    {
+        $this->errors = array();
+
+        switch (strtolower($action)){
+            case 'selectall':
+                foreach ($this->fieldarray as $row => $data) {
+                    if (!empty($data)) {
+                        $this->fieldarray[$row]['selected'] = true;
+                    } // if
+                } // foreach
+                break;
+            case 'unselectall':
+                foreach ($this->fieldarray as $row => $data) {
+                    if (!empty($data)) {
+                        $this->fieldarray[$row]['selected'] = false;
+                    } // if
+                } // foreach
+                break;
+            default:
+                $this->errors[] = $this->getLanguageText('sys0012', $action); // 'setAction: X is unknown action'
+        } // switch
+
+        return $this->fieldarray;
+
+    } // setAction
+
+    // ****************************************************************************
+    function setChildData ($data)
+    // return $fieldarray from the parent object.
+    {
+        if (!is_object($this->child_object)) {
+            return FALSE;
+        } elseif (!method_exists($this->child_object, 'setFieldArray')) {
+            return FALSE;
+        } // if
+
+        $this->child_object->setFieldArray($data);
+
+        return true;
+
+    } // setChildData
+
+    // ****************************************************************************
+    function setChildObject (&$childOBJ)
+    // insert a reference to this object's child in the current task.
+    {
+        if (is_object($childOBJ)) {
+            $this->child_object =& $childOBJ;
+            if (is_object($this->custom_processing_object)) {
+                $this->custom_processing_object->child_object =& $childOBJ;
+            } // if
+        } // if
+
+        return;
+
+    } // setChildObject
+
+    // ****************************************************************************
+    function set_column_scale ($columns)
+    // find the scale of each column so it can be used in the check_currency_values() function.
+    {
+        $scales = array();
+
+        foreach ($columns as $name_fn => $name_tx) {
+            $scales[$name_fn] = 2;  // start with default value
+            if (!empty($this->fieldspec[$name_fn]) AND $this->fieldspec[$name_fn]['type'] == 'numeric') {
+                if (!empty($this->fieldspec[$name_fn]['scale'])) {
+                    $scales[$name_fn] = $this->fieldspec[$name_fn]['scale'];
+                } // if
+            } // if
+        } // foreach
+
+        return $scales;
+
+    } // set_column_scale
+
+    // ****************************************************************************
+    function setCurrentOrHistoric ()
+    // this table contains fields START_DATE and END_DATE, so insert into search
+    // screen a dropdown list to select 'current', 'historic' or 'all' dates.
+    {
+
+        // create array of options and and put into LOOKUP_DATA
+        //$array['C'] = 'Current';
+        //$array['H'] = 'Historic';
+        //$array['F'] = 'Future';
+        $array = $this->getLanguageArray('curr_or_hist');
+        $this->lookup_data['curr_or_hist'] = $array;
+
+        // insert field into $fieldspec
+        $this->fieldspec['curr_or_hist'] = array('type' => 'string',
+                                                 'control' => 'dropdown',
+                                                 'optionlist' => 'curr_or_hist');
+        return;
+
+    } // setCurrentOrHistoric
+
+    // ****************************************************************************
+    function setDateRange ($target_date)
+    // sets a date range using the start/end dates for this table
+    {
+        if (!empty($this->nameof_start_date)) {
+            $start_date = $this->nameof_start_date;
+        } else {
+            $start_date = 'start_date';
+        } // if
+        if (!empty($this->nameof_end_date)) {
+            $end_date   = $this->nameof_end_date;
+        } else {
+            $end_date   = 'end_date';
+        } // if
+
+        $search[$start_date] = "<='{$target_date} 23:59:59'";
+        $search[$end_date]   = ">='{$target_date} 00:00:00'";
+
+        $string = array2where($search);
+
+        return $string;
+
+    } // setDateRange
+
+    // ****************************************************************************
+    function setDefaultOrderBy ($sql_orderby='')
+    // this allows a default sort order to be specified (see getData)
+    {
+        // only set if non-null value is given
+        if (!empty($sql_orderby)) {
+            $this->default_orderby_task = trim(strtolower($sql_orderby));
+            $this->sql_orderby_seq = $this->getOrderBySeq($sql_orderby);
+        } // if
+
+        return;
+
+    } // setDefaultOrderBy
+
+    // ****************************************************************************
+    function setFieldAccess ()
+    // get contents of ROLE_TASKFIELD for this role/task.
+    // this identifies if access to certain fields should be turned off.
+    {
+        //$this->errors = array();
+        $array = array();
+
+        if (empty($_SESSION['logon_user_id'])) {
+            return $array;
+        } // if
+
+        // MNU_ROLE_TASKFIELD contains a list of fields for the current task
+        // which may have the default ACCESS_TYPE altered for the current role.
+
+        // first we must obtain the user's current role setting
+        $dbrole = RDCsingleton::getInstance('mnu_role');
+        $dbrole_data = $dbrole->getRole($_SESSION['logon_user_id']);
+        if (!empty($dbrole->errors)) {
+            $this->errors = array_merge($this->errors, $dbrole->errors);
+            return FALSE;
+        } // if
+        unset($dbrole);
+
+        $role_id       = $dbrole_data['role_id'];
+        $role_list     = $dbrole_data['role_list'];
+        $global_access = $dbrole_data['global_access'];
+
+        // If the security class has GLOBAL_ACCESS = 'y' there are no restrictions.
+        //if (is_True($global_access)) return $array;
+
+        $dbobject = RDCsingleton::getInstance('mnu_role_taskfield');
+
+        $dbobject->sql_select = 'role_id, task_id, field_id, access_type';
+        $dbobject->sql_from   = 'mnu_role_taskfield ';
+        if (!empty($role_list)) {
+            $dbobject->sql_where  = "mnu_role_taskfield.role_id IN($role_list)";
+        } else {
+            $dbobject->sql_where  = "mnu_role_taskfield.role_id = '$role_id'";
+        } // if
+
+        $dbobject->sql_orderby = 'field_id ASC, access_type DESC';  // force NED before NDI
+        $PHP_SELF = getSelf();  // reduce PHP_SELF to '/dir/file.php'
+        $where = "task_id='" .$_SESSION['pages'][$PHP_SELF]['task_id'] ."'";
+
+        $accessarray = $dbobject->getData_raw($where);
+        if (!empty($dbobject->errors)) {
+            $this->errors = array_merge($this->errors, $dbobject->errors);
+        } // if
+        unset($dbobject);
+
+        // $accessarray contains a separate row for each field which must now be
+        // reduced to an associative array of 'field_id=access_type'
+        $array = array();
+        foreach ($accessarray as $row => $rowdata) {
+            $fieldname  = strtolower($rowdata['field_id']);
+            $fieldvalue = strtolower($rowdata['access_type']);
+            // set access type for the field
+            switch ($fieldvalue) {
+                case 'ned':
+                    $array[$fieldname] = 'noedit';
+                    break;
+                case 'ndi':
+                    $array[$fieldname] = 'nodisplay';
+                    break;
+                default:
+                    // ignore if access_type='full' (no restrictions)
+            } // switch
+        } // foreach
+
+        $this->field_access = $array;
+
+        return $array;
+
+    } // setFieldAccess
+
+    // ****************************************************************************
+    function setFieldArray ($fieldarray, $reset_pageno=true, $reset_numrows=true)
+    // this allows the current data array to be set or replaced.
+    {
+        if (empty($fieldarray)) {
+            $this->fieldarray = array();
+        } else {
+            reset($fieldarray);   // fix for version 4.4.1
+            if (!is_string(key($fieldarray))) {
+                // input is indexed by row, so use it 'as is'
+                $this->fieldarray = $fieldarray;
+            } else {
+                // input is not indexed by row, so make it row zero
+                $this->fieldarray = array($fieldarray);
+            } // if
+        } // if
+
+        if ($reset_numrows === true) {
+            $this->numrows = count($this->fieldarray);
+        } // if
+
+        if ($this->numrows == 0) {
+            if ($reset_pageno === true) {
+                $this->pageno   = 0;
+                $this->lastpage = 0;
+            } // if
+        } // if
+
+        return $this->fieldarray;
+
+    } // setFieldArray
+
+    // ****************************************************************************
+    function setInstruction ($instruction)
+    // load an optional instruction from the previous script.
+    {
+        $this->instruction = $instruction;
+
+        // process any instruction to expand a tree node
+        if (array_key_exists('expand', $instruction)) {
+            $this->expanded[$instruction['expand']] = true;
+            unset($instruction['expand']);
+        } // if
+
+        return;
+
+    } // setInstruction
+
+    // ****************************************************************************
+    function setJavaScript ($javascript)
+    // load an optional instruction from the previous script.
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_setJavaScript')) {
+                $javascript = $this->custom_processing_object->_cm_setJavaScript($javascript);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $javascript = $this->_cm_setJavaScript($javascript);
+        } // if
+
+        return $javascript;
+
+    } // setJavaScript
+
+    // ****************************************************************************
+    function setOrderBy ($sql_orderby, $sql_orderby_seq=null, $toggle=true)
+    // this allows a sort order to be changed by the user (see getData)
+    {
+        $this->sql_orderby = trim(strtolower($sql_orderby));
+
+        if (empty($this->sql_orderby)) {
+            $this->sql_orderby_seq  = NULL;
+            $this->prev_sql_orderby = NULL;
+            return;
+        } // if
+
+        // reduce orderby from 'table.column, table.column, ...' to a single column name
+        $test_orderby           = reduceOrderBy($sql_orderby);
+        $this->prev_sql_orderby = reduceOrderBy($this->prev_sql_orderby);
+
+        if ($test_orderby != $this->prev_sql_orderby) {
+            // column name has changed, so reset sequence to 'ASC'
+            $this->sql_orderby_seq = 'asc';
+        } else {
+            // toggle 'orderby_seq' between 'asc' and 'desc'
+            if (empty($this->sql_orderby_seq) OR $toggle === false) {
+                $this->sql_orderby_seq = $sql_orderby_seq;
+
+            } elseif (empty($sql_orderby_seq) OR $sql_orderby_seq == 'asc') {
+                $this->sql_orderby_seq = 'desc';
+            } else {
+                $this->sql_orderby_seq = 'asc';
+            } // if
+        } // if
+
+        return;
+
+    } // setOrderBy
+
+    // ****************************************************************************
+    function setOrderBySeq ($sql_orderby_seq)
+    // this allows a sort sequence ('asc' or 'desc') to be set (see getData)
+    {
+        if (empty($this->sql_orderby)) {
+            $this->sql_orderby_seq = null;
+        } else {
+            $this->sql_orderby_seq = trim($sql_orderby_seq);
+        } // if
+
+        return;
+
+    } // setOrderBySeq
+
+    // ****************************************************************************
+    function setPageNo ($pageno=null)
+    // this allows a particular page number to be selected (see getData)
+    {
+        $this->prev_pageno = $this->pageno;
+
+        if (empty($pageno)) {
+            $this->pageno = 1;
+        } else {
+            $this->pageno = abs((int)$pageno);
+        } // if
+
+        // a new page has been selected, so clear what was selected on the previous page
+        $this->select_string = null;
+
+        if ($this->pageno < $this->prev_pageno) {
+            $this->skip_offset = 0;     // going backwards, so clear offset
+        } elseif ($this->pageno > $this->prev_pageno) {
+            if (!empty($this->skip_offset)) {
+                $this->skip_offset++;   // going forwards, so increment offset
+            } // if
+        } elseif ($this->pageno == 1) {
+            $this->skip_offset = 0;     // (re)starting, so clear offset
+        } // if
+
+        return;
+
+    } // setPageNo
+
+    // ****************************************************************************
+    function setParentData ($data)
+    // return $fieldarray from the parent object.
+    {
+        if (!is_object($this->parent_object)) {
+            return FALSE;
+        } elseif (!method_exists($this->parent_object, 'setFieldArray')) {
+            return FALSE;
+        } // if
+
+        $this->parent_object->setFieldArray($data);
+
+        return true;
+
+    } // setParentData
+
+    // ****************************************************************************
+    function setParentObject (&$parentOBJ)
+    // insert a reference to this object's parent in the current task.
+    {
+        if (is_object($parentOBJ)) {
+            $this->parent_object =& $parentOBJ;
+            if (is_object($this->custom_processing_object)) {
+                $this->custom_processing_object->parent_object =& $parentOBJ;
+            } // if
+        } // if
+
+        return;
+
+    } // setParentObject
+
+    // ****************************************************************************
+    function setRowsPerPage ($rows_per_page)
+    // this allows the default value to be changed
+    {
+        $this->rows_per_page = abs((int)$rows_per_page);
+
+        return;
+
+    } // setRowsPerPage
+
+    // ****************************************************************************
+    function setScrollArray ($where)
+    // construct an array of primary keys using the contents of $where
+    {
+        // convert $where (string) into an array of 'name=value' pairs
+        $where_array = where2array($where);
+
+        // call custom method to construct $this->scrollarray
+        $array = $this->_cm_setScrollArray($where, $where_array);
+
+        //$array = array_unique($array);  // remove duplicates
+
+        // shift entries so that they start at position 1 not 0
+        array_unshift($array, 'dummy');
+        unset($array[0]);
+
+        // save this array for use during this object's life
+        $this->scrollarray = $array;
+
+        if ($this->pageno < 1) {
+            $this->pageno = 1;
+        } // if
+
+        // replace $where with details from 1st entry in scrollarray
+        if (is_array($this->scrollarray[$this->pageno])) {
+            $where = array2where($this->scrollarray[$this->pageno], $this->getPkeyNames());
+        } else {
+            $where = $this->scrollarray[$this->pageno];
+        } // if
+
+        // set initial values to be used by scrolling logic
+        $this->scrollindex = $this->pageno;
+        $this->numrows     = count($this->scrollarray);
+        $this->lastpage    = count($this->scrollarray);
+
+        return $where;
+
+    } // setScrollArray
+
+    // ****************************************************************************
+    function setScrollIndex ($index='1')
+    // this allows a particular index number to be selected (see getData)
+    {
+        $this->scrollindex = abs((int)$index);
+
+        return;
+
+    } // setScrollIndex
+
+    // ****************************************************************************
+    function setSelectedRows ($select_string, $rows)
+    // mark any rows as 'selected' if pkey exists in select string
+    {
+        $select_array = splitWhereByRow($select_string);
+        foreach ($select_array as $index => $string) {
+            $array1 = where2array($string);     // convert string to array
+            $select_array[$index] = $array1;    // replace string with array
+        } // foreach
+
+        // now compare each row of data with $select_array
+        foreach ($rows as $rownum => $rowdata) {
+            if (empty($select_array)) {
+                break;  // no entries left, so exit
+            } // if
+            foreach ($select_array as $select_row => $select_array2) {
+                $found = false;
+                foreach ($select_array2 as $select_name => $select_value) {
+                    if (!array_key_exists($select_name, $rowdata)) {
+                        // this must be a dummy field, so ignore it
+                    } else {
+                        if ($rowdata[$select_name] == $select_value) {
+                            $found = true;
+                        } else {
+                            $found = false;
+                            break;
+                        } // if
+                    } // if
+                } // foreach
+                if ($found == true) {
+                    // data matches selection, so mark this row as 'selected'
+                    $rows[$rownum]['selected'] = true;
+                    unset($select_array[$select_row]);
+                    break;
+                } // if
+            } // foreach
+        } // foreach
+
+        return $rows;
+
+    } // setSelectedRows
+
+    // ****************************************************************************
+    function setSqlSearch ($sql_search=null, $save=false)
+    // set additional criteria to be used in sql select
+    {
+        $this->sql_search       = $sql_search;
+        $this->sql_search_orig  = $sql_search;
+
+        // this causes following variables to be reset
+        $this->pageno     = 1;
+        $this->sql_having = null;
+
+        // new selection criteria has been entered, so clear what was selected previously
+        $this->select_string = null;
+
+        if (!empty($sql_search) AND $save == true) {
+            // save this so that it appears in the search screen
+            if (!empty($this->sql_search_table)) {
+                $search_table = $this->sql_search_table;
+            } else {
+                $search_table = $this->tablename;
+            } // if
+            if (isset($_SESSION['search'][$search_table])) {
+                $_SESSION['search'][$search_table] = mergeWhere($_SESSION['search'][$search_table], $sql_search);
+            } else {
+                $_SESSION['search'][$search_table] = $sql_search;
+            } // if
+        } // if
+
+        return;
+
+    } // setSqlSearch
+
+    // ****************************************************************************
+    function setSqlQuickSearch ($sql_search=null, $save=false)
+    // set additional criteria to be used in sql select
+    {
+        $array = where2array($sql_search, null, false);
+
+        // verify that only a single field is specified
+        list($fieldname, $operator, $fieldvalue) = splitNameOperatorValue($sql_search);
+        $sql_search = $fieldname.' '.trim($operator).' '.$fieldvalue;
+
+        if (array_key_exists($fieldname, $this->fieldspec)) {
+            $spec = $this->fieldspec[$fieldname];
+        } else {
+            $spec = array('type' => 'string');
+        } // if
+
+        if (!preg_match('/^(like)$/i', trim($operator))) {
+            if (preg_match('/(decimal|numeric|integer|float|real|double)/i', $spec['type'])) {
+                if (is_numeric($fieldvalue)) {
+                    if ($fieldvalue == (int)$fieldvalue) {
+                        $number = (int)$fieldvalue;
+                    } elseif ($fieldvalue == (float)$fieldvalue) {
+                        $number = (float)$fieldvalue;
+                    } else {
+                        $number = null;
+                    } // if
+                    if ((string)$fieldvalue == (string)$number) {
+                        // this is a number, so do not append the wildcard character
+                        $sql_search = $fieldname ." = " .$number;
+                    } else {
+                        // put a wildcard character at the end of the string by default
+                        $sql_search = $fieldname ." LIKE '" .addslashes($fieldvalue) ."%'";
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        $this->sql_search      = $sql_search;
+        $this->sql_search_orig = $sql_search;
+
+        // this causes following variables to be reset
+        $this->pageno     = 1;
+        $this->sql_having = null;
+
+        // new selection criteria has been entered, so clear what was selected previously
+        $this->select_string = null;
+
+        if (!empty($sql_search) AND $save == true) {
+            // save this so that it appears in the search screen
+            if (!empty($this->sql_search_table)) {
+                $search_table = $this->sql_search_table;
+            } else {
+                $search_table = $this->tablename;
+            } // if
+            $_SESSION['search'][$search_table] = $sql_search;
+        } // if
+
+        return;
+
+    } // setSqlQuickSearch
+
+    // ****************************************************************************
+    function setSqlGroupBy ($sql_groupby=null)
+    // set additional criteria to be used in sql select
+    {
+        $this->sql_groupby = trim($sql_groupby);
+
+        return;
+
+    } // setSqlSearch
+
+    // ****************************************************************************
+    function setSqlWhere ($sql_where)
+    // set additional criteria to be used with sql where
+    {
+        if (empty($this->sql_where)) {
+            $this->sql_where = $sql_where;
+        } else {
+            $this->sql_where .= ' AND ' .$sql_where;
+        } // if
+
+        return;
+
+    } // setSqlWhere
+
+    // ****************************************************************************
+//    function setSelectArray ($selection)
+//    // set optional selection criteria to be used in sql select
+//    {
+//        if (is_array($selection)) {
+//            // use only 1st element of this array
+//            $this->selectarray = $selection[key($selection)];
+//        } else {
+//            // convert string to an associative array
+//            $this->selectarray = where2array($selection);
+//        } // if
+//
+//    } // setSelectArray
+
+    // ****************************************************************************
+    function sqlSelectDefault ()
+    // set components of the sql SELECT statement to their default values using
+    // the contents of $this->parent_relations.
+    {
+        $save_sql_no_foreign_db = $this->sql_no_foreign_db;
+        $this->sqlSelectInit();
+        $this->sql_no_foreign_db = $save_sql_no_foreign_db;
+
+        $this->sql_from = $this->_sqlForeignJoin($this->sql_select, $this->sql_from, $this->parent_relations);
+
+        $this->access_count = 1;
+
+        return;
+
+    } // sqlSelectDefault
+
+    // ****************************************************************************
+    function sqlSelectInit ($clear_lookup_data=false)
+    // initialise all variables used to construct the sql SELECT statement.
+    {
+        $this->sql_select       = null;
+        $this->sql_from         = null;
+        $this->sql_where        = null;
+        $this->sql_union        = null;
+        $this->sql_groupby      = null;
+        $this->sql_groupby_orig = null;
+        $this->sql_orderby      = null;
+        $this->sql_orderby_seq  = null;
+        $this->sql_having       = null;
+        $this->sql_search       = null;
+        $this->sql_search_orig  = null;
+        $this->sql_search_table = null;
+        $this->pageno           = null;
+        //$this->rows_per_page    = null;
+        $this->access_count     = null;
+        //$this->sql_no_foreign_db = false;
+
+        if (is_True($clear_lookup_data)) {
+            $this->lookup_data  = array();
+        } // if
+
+        $this->numrows          = 0;
+        $this->delete_count     = 0;
+        $this->insert_count     = 0;
+        $this->update_count     = 0;
+        $this->unchange_count   = 0;
+
+        return;
+
+    } // sqlSelectInit
+
+    // ****************************************************************************
+    function startTransaction ()
+    // start a new transaction, to be terminated by either COMMIT or ROLLBACK.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $GLOBALS['lock_tables'] = FALSE;    // set default, may be changed
+        $GLOBALS['lock_rows']   = FALSE;    // set default, may be changed
+
+        $this->transaction_level = null;    // set default, may be changed
+
+        // get optional locks from current object
+        $lock_array = $this->_cm_getDatabaseLock();
+
+        $new_array = array();
+
+        if ($GLOBALS['lock_tables'] == TRUE) {
+            if (empty($lock_array)) {
+                $lock_array['WRITE'][] = $this->tablename;
+            } // if
+
+            foreach ($lock_array as $row => $data) {
+                // if no READ/WRITE lock is specified, default to WRITE
+                if (!preg_match('/^(READ|WRITE)$/i', $row, $regs)) {
+                    $lock_array['WRITE'][] = $data;  // insert new entry
+                    unset($lock_array[$row]);        // delete old entry
+                } // if
+            } // foreach
+
+            // set up array of standard locks
+            $std_lock['WRITE']['audit'][]    = 'audit_ssn';
+            $std_lock['WRITE']['audit'][]    = 'audit_trn';
+            $std_lock['WRITE']['audit'][]    = 'audit_tbl';
+            $std_lock['WRITE']['audit'][]    = 'audit_fld';
+            $std_lock['READ'] ['menu'][]     = 'mnu_role';
+            $std_lock['READ'] ['menu'][]     = 'mnu_task';
+            $std_lock['READ'] ['menu'][]     = 'mnu_initial_value_role';
+            $std_lock['READ'] ['menu'][]     = 'mnu_initial_value_user';
+            $std_lock['READ'] ['workflow'][] = 'wf_workflow';
+            $std_lock['READ'] ['workflow'][] = 'wf_place';
+            $std_lock['READ'] ['workflow'][] = 'wf_transition';
+            $std_lock['READ'] ['workflow'][] = 'wf_arc';
+            $std_lock['WRITE']['workflow'][] = 'wf_case';
+            $std_lock['WRITE']['workflow'][] = 'wf_token';
+            $std_lock['WRITE']['workflow'][] = 'wf_workitem';
+
+            // compare $lock_array with $std_locks looking for duplicates
+            // NOTE: a WRITE lock will replace a READ lock
+            foreach ($lock_array as $mode => $mode_array) {
+                foreach ($mode_array as $row => $tablename) {
+                    if (strpos($tablename, '.')) {
+                        // split into $dbname and $tablename
+                        list($dbname, $tablename) = explode('.', $tablename);
+                    } else {
+                        $dbname = $this->dbname;
+                    } // if
+                    if ($mode == 'WRITE') {
+                        if (array_key_exists($dbname, $std_lock['READ'])) {
+                            if (in_array($tablename, $std_lock['READ'][$dbname])) {
+                                // remove any entry for the same table in the READ array
+                                $stdrow = array_search($tablename, $std_lock['READ'][$dbname]);
+                                unset($std_lock['READ'][$dbname][$stdrow]);
+                            //} else {
+                            //    unset($lock_array[$mode][$row]);
+                            } // if
+                        } elseif (array_key_exists($dbname, $std_lock['WRITE'])) {
+                            if (in_array($tablename, $std_lock['WRITE'][$dbname])) {
+                                // remove any entry for the same table in the READ array
+                                $stdrow = array_search($tablename, $std_lock['WRITE'][$dbname]);
+                                unset($std_lock['WRITE'][$dbname][$stdrow]);
+                            } // if
+                        } // if
+                    } else {  // $mode == 'READ'
+                        if (array_key_exists($dbname, $std_lock['READ'])) {
+                            if (in_array($tablename, $std_lock['READ'][$dbname])) {
+                                // remove any entry for the same table in the READ array
+                                $stdrow = array_search($tablename, $std_lock['READ'][$dbname]);
+                                unset($std_lock['READ'][$dbname][$stdrow]);
+                            } // if
+                        } elseif (array_key_exists($dbname, $std_lock['WRITE'])) {
+                            if (in_array($tablename, $std_lock['WRITE'][$dbname])) {
+                                // remove any entry for the same table in the READ array
+                                unset($lock_array[$mode][$row]);
+                            } // if
+                        } // if
+                    } // if
+                } // foreach
+            } // foreach
+
+            $switch_dbnames = array();
+            reset($lock_array);
+            // transfer $lock_array to $new_array
+            foreach ($lock_array as $mode => $mode_array) {
+                foreach ($mode_array as $row => $tablename) {
+                    if (strpos($tablename, '.')) {
+                        // split into $dbname and $tablename
+                        list($dbname, $tablename) = explode('.', $tablename);
+                        if (!array_key_exists($dbname, $switch_dbnames)) {
+                            // does not exist yet, so create it now
+                            $switch_dbnames[$dbname] = findDBName($dbname, $this->dbname);
+                        } // if
+                        // replace dictionary name with server name
+                        $server_dbname = $switch_dbnames[$dbname];
+                        $new_array[$mode][] = $server_dbname.$tablename;
+                    } else {
+                        $new_array[$mode][] = $tablename;
+                    } // if
+                } // foreach
+            } // foreach
+
+            // transfer $std_lock to $new_array
+            foreach ($std_lock as $mode => $mode_array) {
+                foreach ($mode_array as $std_dbname => $std_table_array) {
+                    foreach ($std_table_array as $std_tablename) {
+                        if ($std_dbname == $this->dbname) {
+                            $new_array[$mode][] = $std_tablename;
+                        } else {
+                            if (!array_key_exists($std_dbname, $switch_dbnames)) {
+                                // does not exist yet, so create it now
+                                $switch_dbnames[$std_dbname] = findDBName($std_dbname, $this->dbname);
+                            } // if
+                            // replace dictionary name with server name
+                            $server_dbname = $switch_dbnames[$std_dbname];
+                            $new_array[$mode][] = $server_dbname.$std_tablename;
+                        } // if
+                    } // foreach
+                } // foreach
+            } // foreach
+
+        } // if
+
+        $DML->transaction_level = $this->transaction_level;
+        $DML->table_locks       = $new_array;
+        $DML->row_locks         = $this->row_locks;         // EX=Exclusive, SH=shared
+        $DML->row_locks_supp    = $this->row_locks_supp;    // DBMS-specific
+
+        $result = $DML->startTransaction($this->dbname_server);
+
+        $GLOBALS['transaction_has_started'] = TRUE;
+
+        return $result;
+
+    } // startTransaction
+
+    // ****************************************************************************
+    function unFormatData ($fieldarray)
+    // remove any formatting before data is given to the database.
+    // (such as changing dates from 'dd Mmm CCYY' to 'CCYY-MM-DD')
+    {
+        $dateobj = RDCsingleton::getInstance('date_class');
+
+        foreach ($fieldarray as $fieldname => $fieldvalue) {
+            // only deal with fields defined in $fieldspec
+            if (isset($this->fieldspec[$fieldname])) {
+                // get specifications for current field
+                $fieldspec = $this->fieldspec[$fieldname];
+                if (!isset($fieldspec['type'])) {
+                    $fieldspec['type'] = 'string';  // set default type
+                } // if
+
+                $operators = "/^(<>|<=|<|>=|>|!=|=|LIKE |IS NOT |IS |IN |BETWEEN )/i";
+                // does $fieldvalue start with a valid operator?
+                if (is_string($fieldvalue) AND !preg_match($operators, ltrim($fieldvalue), $regs)) {
+                    // no, so value can be (un)formatted
+                    switch (strtolower($fieldspec['type'])) {
+                        case 'string':
+                            break;
+                        case 'boolean':
+                            break;
+                        case 'date':
+                            if (empty($fieldvalue)) {
+                                if (isset($fieldspec['infinityisnull'])) {
+                                    if ($GLOBALS['mode'] == 'search') {
+                                        // do not modify this field in a search screen
+                                    } else {
+                                        // empty date is shown in the database as infinity
+                                        $fieldarray[$fieldname] = '9999-12-31';
+                                    } // if
+                                } // if
+                            } else {
+                                // convert date from external to internal format
+                                try {
+                                    $internaldate = $dateobj->getInternalDate($fieldvalue);
+                                    $fieldarray[$fieldname] = $internaldate;
+                                } catch (Exception $e) {
+                                    $this->errors[$fieldname] = $e->getMessage();
+                                } // try
+                            } // if
+                            break;
+                        case 'datetime':
+                            if (!empty($fieldvalue)) {
+                                // convert date from external to internal format
+                                try {
+                                    $internaldate = $dateobj->getInternalDateTime($fieldvalue);
+                                    $fieldarray[$fieldname] = $internaldate;
+                                } catch (Exception $e) {
+                                    $this->errors[$fieldname] = $e->getMessage();
+                                } // try
+                            } // if
+                            break;
+                        case 'time':
+                            break;
+                        case 'float':
+                        case 'double':
+                        case 'real':
+                            break;
+                        default:
+                            ;
+                    } // switch
+                } // if
+            } // if
+        } // foreach
+
+        // perform any custom unformatting
+        $fieldarray = $this->_cm_unFormatData($fieldarray);
+
+        return $fieldarray;
+
+    } // unFormatData
+
+    // ****************************************************************************
+    function unFormatNumber ($fieldarray)
+    // remove any foreign formatting on numbers.
+    {
+//        if ($_SESSION['user_language'] == $_SESSION['default_language']) {
+//            return $fieldarray;  // nothing to do
+//        } // if
+
+        foreach ($this->fieldspec as $field => $spec) {
+            if (!empty($fieldarray[$field])) {
+                if (preg_match('/(decimal|numeric|float|real|double|integer)/i', $spec['type'])) {
+                    $fieldarray[$field] = number_unformat($fieldarray[$field]);
+                } // if
+            } // if
+        } // foreach
+
+        return $fieldarray;
+
+    } // unFormatNumber
+
+    // ****************************************************************************
+    function updateFieldArray ($fieldarray, $postarray, $perform_validation=true)
+    // update fieldarray with data POSTed via javascript submit() function.
+    {
+        if ($this->errors) {
+            return $this->getFieldArray();  // object has unresolved errors, so do nothing
+        } // if
+
+        $pattern_id = getPatternId();
+
+        if (is_long(key($fieldarray))) {
+            // array is indexed by row number
+            $fieldarray_key = key($fieldarray);  // does index start at 0 or 1?
+            $is_indexed     = true;
+        } else {
+            $fieldarray_key = 0;
+            $is_indexed     = false;
+        } // if
+
+        // filter out any data which does not belong in this table
+        $postarray = getPostArray($postarray, $this->fieldspec, $is_indexed);
+
+        // each item in post array may have different values for different rows,
+        // so construct an array which is indexed by row number, not field name
+        $rows = array();
+        foreach ($postarray as $postname => $postvalue) {
+            if (is_array($postvalue)) {
+                foreach ($postvalue as $rownum => $value) {
+                    if ($fieldarray_key == 0) {
+                        $rownum = $rownum -1;  // post array starts at 1, fieldarray starts at 0
+                    } // if
+                    $rows[$rownum][$postname] = $value;
+                } // foreach
+            } else {
+                // not linked with a particular row, so default to first row
+                $rows[$fieldarray_key][$postname] = $postvalue;
+            } // if
+        } // foreach
+
+        if (empty($rows)) {
+            return $this->getFieldArray();  // nothing to update in this object
+        } // if
+
+        reset($fieldarray);
+        if (!is_long(key($fieldarray))) {
+            $fieldarray = array($fieldarray);  // change array from associative to indexed by row 0
+        } // if
+
+        $fieldarray_out = $fieldarray;
+
+        $errors = $this->errors;
+
+        // deal with the changes on each row, one at a time
+        foreach ($rows as $rownum => $postdata) {
+            if (array_key_exists($rownum, $fieldarray)) {
+                // convert dates and numbers to internal format
+                $postdata = array_update_associative($postdata, $postdata, $this->fieldspec);
+                // perform any custom processing
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_updateFieldArray')) {
+                        $fieldarray_out[$rownum] = $this->custom_processing_object->_cm_updateFieldArray($fieldarray[$rownum], $postdata, $rownum);
+                    } // if
+                } // if
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $fieldarray_out[$rownum] = $this->_cm_updateFieldArray($fieldarray[$rownum], $postdata, $rownum);
+                } // if
+                $fieldarray_out[$rownum] = array_update_associative($fieldarray_out[$rownum], $postdata, $this->fieldspec);
+                if (is_True($perform_validation)) {
+                    $fieldarray_out[$rownum] = $this->custom_commonValidation($fieldarray_out[$rownum], $fieldarray[$rownum]);
+                } // if
+                if (!empty($this->errors)) {
+                    if ($is_indexed) {
+                        $errors[$rownum] = $this->errors;
+                        $this->errors    = array();
+                    } // if
+                } // if
+            } // if
+        } // foreach
+
+        if ($is_indexed) {
+            $fieldarray = $fieldarray_out;
+            $this->errors = $errors;
+        } else {
+            $fieldarray = $fieldarray_out[0];
+        } // if
+
+        if (empty($this->errors)) {
+            // see if any additional data is required or needs to be changed
+            $fieldarray = $this->getExtraData($fieldarray);
+        } // if
+
+        $this->fieldarray = $fieldarray;
+
+        return $this->getFieldArray();
+
+    } // updateFieldArray
+
+    // ****************************************************************************
+    function updateLinkData ($fieldarray, $postarray)
+    // $fieldarray is an array of field data (usually just primary keys).
+    // $postarray is an array of entries which have been selected.
+    // For each entry where SELECTED=TRUE make sure a database entry exists.
+    // For each entry where SELECTED=FALSE make sure a database entry does not exist.
+    {
+        $this->errors = array();
+
+        // perform any custom pre-update processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_pre_updateLinkData')) {
+                $fieldarray = $this->custom_processing_object->_cm_pre_updateLinkData($fieldarray, $postarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_pre_updateLinkData($fieldarray, $postarray);
+        } // if
+        if (!empty($this->errors)) return $fieldarray;
+
+        // transfer values from $postarray to $fieldarray
+        // each fieldname in $postarray contains an array of values
+        foreach ($postarray as $fieldname => $valuearray) {
+            if ($fieldname != 'select') {
+                if (is_array($valuearray)) {
+                    // copy row value from $postarray to $fieldarray for current $fieldname
+                    foreach ($valuearray as $row => $value) {
+                        // $fieldarray starts at 0, $postarray starts at 1
+                        $fieldarray[$row-1][$fieldname] = $postarray[$fieldname][$row];
+                    } // foreach
+                } // if
+            } // if
+        } // foreach
+
+        if (!empty($this->errors)) {
+            return $fieldarray;
+        } // if
+
+        $errors = array();
+
+        $default_orderby  = $this->default_orderby; // save
+        $save_sql_select  = $this->sql_select;
+        $save_sql_from    = $this->sql_from;
+        $save_sql_search  = $this->sql_search;
+        $save_sql_groupby = $this->sql_groupby;
+        $save_sql_where   = $this->sql_where;
+
+        // get array of fieldnames in the primary key
+        $pkeynames = $this->getPkeyNames();
+
+        $insert_count = 0;
+        $update_count = 0;
+        $delete_count = 0;
+
+        foreach ($fieldarray as $rownum => $rowdata) {
+
+            // construct 'where' clause from primary key
+            $where = array2where($rowdata, $pkeynames);
+
+            // find out if this record currently exists or not
+            $count = $this->getCount($where);
+
+            $rowdata['rdc_is_link_table'] = true;  // tell next operation that this is a LINK table
+
+            // perform action depending on value in $select array
+            if (isset($postarray['select'][$rownum+1])) {
+                $fieldarray[$rownum]['selected'] = 'T';
+                // row is marked for insert/update
+                if ($count == 0) {
+                    // record does not exist, so create it
+                    $rowdata = $this->insertRecord($rowdata);
+                    $insert_count = $insert_count + $this->numrows;
+                } else {
+                    // record already exists, so update it
+                    $rowdata = $this->updateRecord($rowdata);
+                    if ($rowdata === false AND $this->lock_wait_count > 0) {
+                        return false;  // failed to lock database, so allow a retry
+                    } // if
+                    $update_count = $update_count + $this->numrows;
+                } // if
+            } else {
+                $fieldarray[$rownum]['selected'] = '';
+                // row is marked for deletion
+                if ($count > 0) {
+                    $where = array2where($rowdata, $pkeynames);
+                    $originaldata = $this->_dml_ReadBeforeUpdate($where, $this->reuse_previous_select);
+                    if ($originaldata === false AND $this->lock_wait_count > 0) {
+                        return false;  // failed to lock database, so allow a retry
+                    } // if
+                    $this->reuse_previous_select = true;
+                    if (!empty($originaldata)) {
+                        $rowdata = array_merge($originaldata[0], $rowdata);
+                    } // if
+                    $rowdata = $this->deleteRecord($rowdata);
+                    $delete_count = $delete_count + $this->numrows;
+                } // if
+            } // if
+
+            if ($this->errors) {
+                $errors[$rownum] = $this->errors;
+            } // if
+
+        } // foreach
+
+        $this->default_orderby  = $default_orderby; // restore
+        $this->sql_select       = $save_sql_select;
+        $this->sql_from         = $save_sql_from;
+        $this->sql_search_orig  = $save_sql_search;
+        $this->sql_groupby_orig = $save_sql_groupby;
+        $this->sql_where        = $save_sql_where;
+
+        $this->insert_count = $insert_count;
+        $this->update_count = $update_count;
+        $this->delete_count = $delete_count;
+
+        // perform any custom post-update processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_post_updateLinkData')) {
+                $fieldarray = $this->custom_processing_object->_cm_post_updateLinkData($fieldarray, $postarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_post_updateLinkData($fieldarray, $postarray);
+        } // if
+        if (!empty($this->errors)) {
+            $errors = array_merge($errors, $this->errors);
+            return $fieldarray;
+        } // if
+
+        $this->errors = $errors;
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // updateLinkData
+
+    // ****************************************************************************
+    function updateMultiple ($fieldarray, $postarray=array())
+    // update multiple records using original data in $fieldarray
+    // and changed data in $postarray.
+    {
+        $this->errors  = array();
+        $this->numrows = 0;
+        $this->no_display_count = false;
+        $count                  = 0;
+
+        if ($this->rows_per_page > 1) {
+            // transfer values from $postarray to $fieldarray
+            // each fieldname in $postarray is an array of values
+            foreach ($postarray as $fieldname => $valuearray) {
+                if (is_array($valuearray)) {
+                    if (array_key_exists($fieldname, $this->fieldspec)) {
+                        // copy row value from $postarray to $fieldarray for current $fieldname
+                        foreach ($valuearray as $row => $value) {
+                            // $fieldarray starts at 0, $postarray starts at 1
+                            $fieldarray[$row-1][$fieldname] = $postarray[$fieldname][$row];
+                        } // foreach
+                    } // if
+                } // if
+            } // foreach
+        } // if
+
+        if ($this->rows_per_page == 1 AND !is_long(key($fieldarray))) {
+            // only one row, so convert indexed array to associative
+            $array[0] = $fieldarray;
+            $fieldarray = $array;
+        } // if
+
+        // perform any custom validation/processing before update
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_pre_updateMultiple')) {
+                $fieldarray = $this->custom_processing_object->_cm_pre_updateMultiple($fieldarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_pre_updateMultiple($fieldarray);
+        } // if
+
+        $insert_count   = 0;
+        $update_count   = 0;
+        $delete_count   = 0;
+        $unchange_count = 0;
+
+        if (empty($this->errors)) {
+            $errors = array();
+            // now update each row in the database
+            foreach ($fieldarray as $rownum => $rowdata) {
+                if (array_key_exists('rdc_to_be_inserted', $rowdata)) {
+                    $pageno = $this->pageno;  // save
+                    $this->numrows = 0;
+                    $fieldarray[$rownum] = $this->insertRecord($rowdata);
+                    if (!empty($this->errors)) {
+                        $errors[$rownum] = $this->errors;  // keep $errors separate for each row
+                    } elseif ($this->numrows > 0) {
+                        $insert_count = $insert_count + $this->numrows;
+                    } // if
+                    $this->pageno = $pageno;  // restore
+
+                } elseif (array_key_exists('rdc_to_be_deleted', $rowdata)) {
+                    $fieldarray[$rownum] = $this->deleteRecord($rowdata);
+                    if (!empty($this->errors)) {
+                        $errors[$rownum] = $this->errors;  // keep $errors separate for each row
+                    } elseif ($this->numrows > 0) {
+                        $delete_count = $delete_count + $this->numrows;
+                    } else {
+                        $unchange_count++;
+                    } // if
+
+                } else {
+                    $fieldarray[$rownum] = $this->updateRecord($rowdata);
+                    if ($fieldarray[$rownum] === false AND $this->lock_wait_count > 0) {
+                        return false;  // failed to lock database, so allow a retry
+                    } // if
+                    if (!empty($this->errors)) {
+                        $errors[$rownum] = $this->errors;  // keep $errors separate for each row
+                    } elseif ($this->numrows > 0) {
+                        $update_count = $update_count + $this->numrows;
+                    } else {
+                        $unchange_count++;
+                    } // if
+                } // if
+            } // foreach
+
+            // overwrite proper variables
+            $this->errors  = $errors;
+            $this->numrows = $update_count;
+        } // if
+
+        if (is_True($this->no_display_count)) {
+            // do not display record count
+        } else {
+            // '$count records were updated in $tablename'
+            if ($delete_count > 0) {
+                $this->messages[] = $this->getLanguageText('sys0004', $delete_count, strtoupper($this->tablename));
+            } // if
+            if ($insert_count > 0) {
+                $this->messages[] = $this->getLanguageText('sys0005', $insert_count, strtoupper($this->tablename));
+            } // if
+            if ($update_count > 0) {
+                $this->messages[] = $this->getLanguageText('sys0006', $update_count, strtoupper($this->tablename));
+            } // if
+            if ($unchange_count > 0) {
+                $this->messages[] = $this->getLanguageText('sys0262', $unchange_count, strtoupper($this->tablename));
+            } // if
+        } // if
+
+        //if (empty($this->errors)) {
+            // perform any custom validation/processing after update
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_post_updateMultiple')) {
+                    $fieldarray = $this->custom_processing_object->_cm_post_updateMultiple($fieldarray);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $fieldarray = $this->_cm_post_updateMultiple($fieldarray);
+            } // if
+        //} // if
+
+        if ($this->rows_per_page == 1 AND is_long(key($fieldarray))) {
+            $array = $fieldarray[0];
+            $fieldarray = $array;
+        } // if
+
+        // store updated $fieldarray within this object
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // updateMultiple
+
+    // ****************************************************************************
+    function updateRecord ($fieldarray)
+    // update a record using the contents of $fieldarray.
+    {
+        if (empty($fieldarray)) return $fieldarray;
+
+        $this->errors = array();
+
+        reset($fieldarray);
+        if (!is_string(key($fieldarray))) {
+            // input is indexed by row, so extract data for 1st row only
+            $fieldarray = $fieldarray[key($fieldarray)];
+        } // if
+
+        // shift all field names to lower case
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        if (empty($this->errors)) {
+            // perform any custom pre-update processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_pre_updateRecord')) {
+                    $fieldarray = $this->custom_processing_object->_cm_pre_updateRecord($fieldarray);
+                    if (!is_array($fieldarray)) $fieldarray = array();
+                } // if
+            } // if
+            if (empty($this->errors)) {
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $fieldarray = $this->_cm_pre_updateRecord($fieldarray);
+                    if (!is_array($fieldarray)) $fieldarray = array();
+                } // if
+            } // if
+        } // if
+
+        if ($this->initiated_from_controller === TRUE AND $this->no_convert_timezone === FALSE) {
+            if (!empty($fieldarray) AND !empty($GLOBALS['screen_structure'])) {
+                // deal with datetimes from screen input which may be in different timezone
+                $fieldarray = $this->convertTimeZone($fieldarray, $this->fieldspec);
+            } // if
+        } // if
+
+        if (is_array($fieldarray) AND !empty($fieldarray)) {
+            $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+        } // if
+
+        $updatearray = $fieldarray;  // copy to temporary area
+
+        if (empty($this->errors) AND !empty($updatearray)) {
+            // perform standard declarative checks on input data
+            $updatearray = $this->_validateUpdatePrimary($updatearray);
+            // replace any fields which may have been removed during the validation process
+            $updatearray = array_merge($fieldarray, $updatearray);
+        } // if
+
+        $originaldata = array();
+        if (empty($this->errors) AND !empty($updatearray)) {
+            // build 'where' string using values for primary key
+            $pkey_names = $this->getPkeyNames();
+            if (array_key_exists('rdcversion', $this->fieldspec) AND array_key_exists('rdcversion', $updatearray)) {
+                // add this field to the WHERE clause for this lookup
+                $pkey_names[] = 'rdcversion';
+            } // if
+            $where = array2where($updatearray, $pkey_names, $this);
+            if (!empty($where)) {
+                // obtain copy of original record from database
+                // (this may reuse previous SELECT statement which contains a JOIN)
+                $originaldata = $this->_dml_ReadBeforeUpdate($where, $this->reuse_previous_select);
+                if ($originaldata === false AND $this->lock_wait_count > 0) {
+                    return false;  // failed to lock database, so allow a retry
+                } // if
+            } else {
+                $this->numrows = 0;
+            } // if
+            $this->reuse_previous_select = true;
+            if ($this->numrows <> 1) {
+                // 'Could not locate original $tablename record for updating ($where)'
+                $this->errors[] = $this->getLanguageText('sys0007', strtoupper($this->tablename), $where);
+            } else {
+                $this->numrows = 0;
+                // use only 1st row in $originaldata
+                $originaldata = $originaldata[key($originaldata)];
+                if (isset($this->fieldspec['rdcaccount_id'])) {
+                    if (preg_match('/(mnu_user)$/i', $this->tablename)) {
+                        // ignore this check on this table
+                        $condition = true;
+                    } elseif (!array_key_exists('rdcaccount_id', $originaldata)) {
+                        // Column 'rdcaccount_id' is missing from SELECT list
+                        $this->errors['rdcaccount_id'] = $this->getLanguageText('sys0233');
+                    } else {
+                        $account_id = $_SESSION['rdcaccount_id'];
+                        if (empty($account_id) OR $account_id == 1) {
+                            if ($originaldata['rdcaccount_id'] == 1) {
+                                // this user can update a record in the shared account
+                                $condition = true;
+                            } elseif ($originaldata['rdcaccount_id'] > 1) {
+                                // "Record belongs to a non-shared account, so can only be modified by a user in the same account"
+                                $this->errors[] = getLanguageText('sys0235');
+                            } // if
+                        } elseif ($account_id > 1) {
+                            if ($originaldata['rdcaccount_id'] == 1) {
+                                // "Cannot update a record in the shared account"
+                                $this->errors[] = getLanguageText('sys0189');
+                            } elseif ($originaldata['rdcaccount_id'] != $account_id) {
+                                // "Record belongs to a non-shared account, so can only be modified by a user in the same account"
+                                $this->errors[] = getLanguageText('sys0235');
+                            } // if
+                        } // if
+                    } // if
+                } // if
+                // insert any missing values into updatearray before further validation
+                $updatearray = array_merge($originaldata, $updatearray);
+            } // if
+        } // if
+
+        if (empty($this->errors) AND is_array($updatearray) AND !empty($updatearray)) {
+            if ($this->skip_validation) {
+                // do not perform any custom validation
+            } else {
+                // perform any custom pre-update validation (1)
+                $updatearray = $this->custom_commonValidation($updatearray, $originaldata);
+
+                if (empty($this->errors)) {
+                    // perform any custom pre-update validation (2)
+                    $updatearray = $this->custom_validateUpdate($updatearray, $originaldata);
+                } // if
+
+                if (is_array($updatearray) AND !empty($updatearray)) {
+                    $updatearray = array_change_key_case($updatearray, CASE_LOWER);
+                } // if
+
+            } // if
+        } // if
+
+        if (empty($this->errors)) {
+            // everything OK so far, so update the database
+            if (is_array($updatearray) AND !empty($updatearray)) {
+                // perform any last-minute adjustments
+                foreach ($this->fieldspec as $field => $spec) {
+                    if (array_key_exists($field, $updatearray)) {
+                        if (array_key_exists('autoinsert', $spec) OR array_key_exists('autoupdate', $spec)) {
+                            if (isset($GLOBALS['mode']) AND preg_match('/^(blockchain)$/i', $GLOBALS['mode'])) {
+                                // do not overwrite values set by sending node
+                            } else {
+                                // remove any autoinsert or autoupdate fields
+                                unset($updatearray[$field]);
+                            } // if
+                        } // if
+                        if (!empty($updatearray[$field])) {
+                            if (is_array($this->allow_db_function) AND in_array($field, $this->allow_db_function)) {
+                                // this is a function call, not a value, so leave it alone
+                            } elseif (preg_match('/(decimal|numeric|float|real|double)/i', $spec['type'])) {
+                                if (!empty($spec['precision']) AND $spec['precision'] == 38 AND $spec['scale'] == 0) {
+                                    // leave this number alone
+                                } else {
+                                    // remove thousands separator and ensure decimal point is '.'
+                                    $updatearray[$field] = number_unformat($updatearray[$field], '.', ',');
+                                    if (preg_match("/^$field"."[+-][1-9]+/i", $updatearray[$field])) {
+                                        // assume value is in format 'field+1', so let it through
+                                    } elseif (array_key_exists('scale', $spec)) {
+                                        // round to the correct number of decimal places
+                                        $updatearray[$field] = number_format($updatearray[$field], $spec['scale'], '.', '');
+                                    } // if
+                                } // if
+                            } // if
+                        } // if
+                    } // if
+                } // foreach
+                // find out how many fields have changed
+                $changes = getChanges($updatearray, $originaldata);
+            } else {
+                $changes = array();
+            } // if
+            if (empty($changes)) {
+                $this->numrows = 0;
+            } else {
+                // pass both the updated and the original data for processing
+                $changes = $this->_dml_updateRecord($updatearray, $originaldata);
+                // merge actual updates with proposed updates
+                $updatearray = array_merge($updatearray, $changes);
+            } // if
+        } // if
+
+        $fieldarray = array_merge($originaldata, $fieldarray);
+        if (is_array($updatearray) AND !empty($updatearray)) {
+            // merge temporary area with original changes
+            $fieldarray = array_merge($fieldarray, $updatearray);
+        } // if
+
+        if (empty($this->errors)) {
+            // perform any custom post-update processing
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_post_updateRecord')) {
+                    $fieldarray = $this->custom_processing_object->_cm_post_updateRecord($fieldarray, $originaldata);
+                } // if
+            } // if
+            if (empty($this->errors)) {
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $fieldarray = $this->_cm_post_updateRecord($fieldarray, $originaldata);
+                } // if
+            } // if
+        } // if
+
+        $fieldarray = array_change_key_case($fieldarray, CASE_LOWER);
+
+        if (empty($this->errors)) {
+            $GLOBALS['blockchain_data'] = $this->_checkBlockchainTrigger($GLOBALS['blockchain_data'],
+                                                                         __FUNCTION__,
+                                                                         $fieldarray);
+        } // if
+
+        // turn this flag off
+        $this->skip_validation = FALSE;
+
+        // store updated $fieldarray within this object
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // updateRecord
+
+    // ****************************************************************************
+    function updateSelection ($selection, $replace)
+    // update a selection of records in a single operation.
+    {
+        $this->errors = array();
+
+        if (is_array($selection) AND is_long(key($selection))) {
+            // this is an indexed array, so reduce to first entry only
+            $selection = $selection[key($selection)];
+        } // if
+
+        //$replace = trim($replace, ' ()');
+
+        // perform any custom pre-processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_pre_updateSelection')) {
+                $selection = $this->custom_processing_object->_cm_pre_updateSelection($selection, $replace);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $selection = $this->_cm_pre_updateSelection($selection, $replace);
+        } // if
+
+        if (empty($this->errors)) {
+            // call custom method for specific processing
+            $msg = $this->_cm_updateSelection($selection, $replace);
+        } // if
+
+        // perform any custom post-processing
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_post_updateSelection')) {
+                $selection = $this->custom_processing_object->_cm_post_updateSelection($selection, $replace);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $selection = $this->_cm_post_updateSelection($selection, $replace);
+        } // if
+
+        return $msg;
+
+    } // updateSelection
+
+    // ****************************************************************************
+    function validateChooseButton ($selection, $selected_rows)
+    // the CHOOSE button has been pressed, so validate the selection.
+    {
+        $this->errors = array();
+
+        $rowdata = splitWhereByRow($selection);
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_validateChooseButton')) {
+                $result = $this->custom_processing_object->_cm_validateChooseButton($rowdata, $selected_rows);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $result = $this->_cm_validateChooseButton($rowdata, $selected_rows);
+        } // if
+
+        return true;
+
+    } // validateChooseButton
+
+    // ****************************************************************************
+    function validateDelete ($fieldarray, $parent_table=null)
+    // verify that the specified record can be deleted.
+    // ($parent_table is only used in a cascade delete)
+    {
+        $this->errors = array();
+
+        if ($this->skip_validation) {
+            // skip any validation
+            return $fieldarray;
+        } // if
+
+        if (is_string($fieldarray)) {
+            $fieldarray = where2array($fieldarray);
+        } else{
+            reset($fieldarray);   // fix for version 4.4.1
+            if (!is_string(key($fieldarray))) {
+                // indexed by row, so use row zero only
+                $fieldarray = $fieldarray[key($fieldarray)];
+            } // if
+        } // if
+
+        if (isset($this->fieldspec['rdcaccount_id']) AND !isset($fieldarray['rdc_is_link_table'])) {
+            if (!empty($_SESSION['rdcaccount_id'])) {
+                if (!array_key_exists('rdcaccount_id', $fieldarray)) {
+                    // Column 'rdcaccount_id' is missing from SELECT list
+                    $this->errors['rdcaccount_id'] = $this->getLanguageText('sys0233');
+                } elseif (empty($fieldarray['rdcaccount_id'])) {
+                    $condition = true;  // current user has NULL account_id, so skip next bit
+                } else {
+                    if ($fieldarray['rdcaccount_id'] != $_SESSION['rdcaccount_id']) {
+                        // not allowed to delete a shared record
+                        $this->errors['rdcaccount_id'] = $this->getLanguageText('sys0188');
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (!empty($this->errors)) return $fieldarray;
+
+        // invoke custom method(s) (may be empty)
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_validateDelete')) {
+                $this->custom_processing_object->_cm_validateDelete($fieldarray, $parent_table);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $this->_cm_validateDelete($fieldarray, $parent_table);
+        } // if
+
+        if (!empty($this->errors)) return $fieldarray;
+
+        if (!empty($GLOBALS['settings'])) {
+            // check settings for any special restrictions
+            foreach ($GLOBALS['settings'] as $setting_field => $setting_value) {
+                $setting_field = strtolower($setting_field);
+                $setting_value = strtolower($setting_value);
+                if ($setting_value == '$logon_user_id') {
+                    if (array_key_exists($setting_field, $fieldarray)) {
+                        if ($fieldarray[$setting_field] != $_SESSION['logon_user_id']) {
+                            // "This record can only be deleted by its owner/creator"
+                            $this->errors[] = $this->getLanguageText('sys0115');
+                            return $fieldarray;
+                        } // if
+                    } // if
+                } // if
+            } // foreach
+        } // if
+
+        if (empty($parent_table)) {
+            $parent_table = $this->tablename;
+        } // if
+
+        // all relationship data is held in a class variable
+        foreach ($this->child_relations as $reldata) {
+            $tblchild = $reldata['child'];
+            switch(strtoupper($reldata['type'])) {
+                case 'RESTRICTED':
+                case 'RES':
+                    // delete is not allowed if relationship is 'restricted'
+                    $where_array = array();
+                    foreach ($reldata['fields'] as $fldparent => $fldchild) {
+                        if (!empty($fldchild)) {
+                            if ($fldchild == 'alt_language_table' AND empty($fieldarray['alt_language_table'])) {
+                                if ($fieldarray[$fldparent] == $fieldarray['table_id']) {
+                                    break 2;  // this is referencing itself, so ignore
+                                } // if
+                            } // if
+                            $where_array[$fldchild] = $fieldarray[$fldparent];
+                        } // if
+                    } // foreach
+                    if (empty($where_array)) {
+                        $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild)); // 'Name of child field missing in relationship with $tblchild';
+                        break;
+                    } else {
+                        $where = array2where($where_array);
+                        $where = $this->_dml_adjustWhere($where);  // replace escape character if different
+                        // instantiate an object for this table
+                        if (array_key_exists('subsys_dir', $reldata)) {
+                            $childobject = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$tblchild);
+                        } else {
+                            $childobject = RDCsingleton::getInstance($tblchild);
+                        } // if
+                        if (!empty($this->dbname_old) AND $this->dbname_old == $childobject->dbname) {
+                            // name of parent database has been switched, so switch the child name as well
+                            $childobject->dbname_old = $childobject->dbname;
+                            $childobject->dbname     = $this->dbname;
+                        } // if
+                        $count = $childobject->getCount($where);
+                        if ($count <> 0) {
+                            // 'Cannot delete - record still linked to $tblchild table'
+                            $this->errors[] = $this->getLanguageText('sys0008', strtoupper($tblchild));
+                        } // if
+                        unset($childobject);
+                    } // if
+                    break;
+
+                case 'DELETE':
+                case 'DEL':
+                case 'CASCADE':
+                case 'CAS':
+                    // check children of this child
+                    $where_array = array();
+                    foreach ($reldata['fields'] as $fldparent => $fldchild) {
+                        $where_array[$fldchild] = $fieldarray[$fldparent];
+                    } // foreach
+                    if (empty($where_array)) {
+                        $this->errors[] = $this->getLanguageText('sys0110', strtoupper($tblchild)); // 'Name of child field missing in relationship with $tblchild';
+                        break;
+                    } else {
+                        $where = array2where($where_array);
+                        $where = $this->_dml_adjustWhere($where);  // replace escape character if different
+                        // instantiate an object for this table
+                        if (array_key_exists('subsys_dir', $reldata)) {
+                            $childobject = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$tblchild);
+                        } else {
+                            $childobject = RDCsingleton::getInstance($tblchild);
+                        } // if
+                        if (!empty($this->dbname_old) AND $this->dbname_old == $childobject->dbname) {
+                            // name of parent database has been switched, so switch the child name as well
+                            $childobject->dbname_old = $childobject->dbname;
+                            $childobject->dbname     = $this->dbname;
+                        } // if
+                        if (array_key_exists('orderby', $reldata)) {
+                            $childobject->setOrderBy($reldata['orderby']);
+                        } // if
+                        $childarray  = $childobject->getdata($where);
+                        foreach ($childarray as $child) {
+                            //$pkey   = $childobject->getPkeyArray($child);
+                            //$result = $childobject->validateDelete($pkey, $parent_table);
+                            $result = $childobject->validateDelete($child, $parent_table);
+                            $errors = $childobject->getErrors();
+                            if (!empty($errors)) {
+                                $this->errors[$childobject->getClassName()] = $errors;
+                            } // if
+                        } // foreach
+                        unset($childobject);
+                    } // if
+                    break;
+
+                case 'NULLIFY':
+                case 'NUL':
+                case 'IGN':
+                    //do nothing
+                    break;
+
+                case 'DEX':
+                case 'NUX':
+                    // do nothing as it will be handled by a foreign key constraint
+                    break;
+
+                default:
+                    // 'Unknown relation type: $type'
+                    $this->errors[] = $this->getLanguageText('sys0010', $reldata['type']);
+            } // switch
+        } // foreach
+
+        if (empty($this->errors) AND $this->initiated_from_controller) {
+            if (preg_match('/^(workflow|audit)$/i', $this->dbname) OR defined('TRANSIX_NO_WORKFLOW') OR defined('RADICORE_NO_WORKFLOW')) {
+                // do nothing
+            } else {
+                $where = array2where($fieldarray, $this->primary_key);
+                if (is_string($where) AND !empty($where)) {
+                    // find out if this task/context is a workitem within a workflow instance
+                    $this->_examineWorkflowInstance($where);
+                } // if
+            } // if
+        } // if
+
+        // remove any duplicate error messages
+        $this->errors = array_unique($this->errors);
+
+        return $fieldarray;
+
+    } // validateDelete
+
+    // ****************************************************************************
+    function validateInsert ($fieldarray)
+    // verify that the specified record can be inserted.
+    {
+        // perform primary validation only
+        $fieldarray = $this->_validateInsertPrimary($fieldarray);
+
+        return $fieldarray;
+
+    } // validateInsert
+
+    // ****************************************************************************
+    function validateSearch ($fieldarray)
+    // validate search screen input before it is passed back to the previous form.
+    {
+        $this->errors = array();
+
+        foreach ($this->fieldspec as $field => $spec) {
+            if (isset($spec['required'])) {
+                $fieldarray[$field] = trim($fieldarray[$field]);
+                if (empty($fieldarray[$field])) {
+                    // '$field cannot be blank'
+                    $this->errors[$field] = $this->getLanguageText('sys0020', $field);
+                } // if
+            } // if
+            if (isset($spec['type']) AND $spec['type'] == 'numeric' AND $spec['precision'] == 38) {
+                if (!empty($fieldarray[$field])) {
+                    $fieldarray[$field] = unformatParticipantId($fieldarray[$field]);
+                } // if
+            } // if
+        } // foreach
+
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_validateSearch')) {
+                $fieldarray = $this->custom_processing_object->_cm_validateSearch($fieldarray);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $fieldarray = $this->_cm_validateSearch($fieldarray);
+        } // if
+
+        return $fieldarray;
+
+    } // validateSearch
+
+    // ****************************************************************************
+    function validateUpdate ($fieldarray, $primary=true, $secondary=true)
+    // verify that the specified record can be updated.
+    {
+        if (empty($fieldarray)) {
+            return $fieldarray;
+        } // if
+
+        if (is_string($fieldarray)) {
+            $fieldarray = where2array($fieldarray);
+        } else{
+            reset($fieldarray);   // fix for version 4.4.1
+            if (!is_string(key($fieldarray))) {
+                // indexed by row, so use row zero only
+                $fieldarray = $fieldarray[key($fieldarray)];
+            } // if
+        } // if
+
+        // check settings for any special restrictions
+        foreach ($GLOBALS['settings'] as $setting_field => $setting_value) {
+            $setting_field = strtolower($setting_field);
+            $setting_value = strtolower($setting_value);
+            if ($setting_value == '$logon_user_id') {
+                if (array_key_exists($setting_field, $fieldarray)) {
+                    if ($fieldarray[$setting_field] != $_SESSION['logon_user_id']) {
+                        // "This record can only be updated by its owner/creator"
+                        $this->errors[] = $this->getLanguageText('sys0116');
+                        return $fieldarray;
+                    } // if
+                } // if
+            } // if
+        } // foreach
+
+        if (is_True($primary)) {
+            // perform sandard validation only
+            $fieldarray = $this->_validateUpdatePrimary($fieldarray);
+        } // if
+        if (empty($this->errors)) {
+            if (is_True($secondary)) {
+                // perform any custom pre-update validation
+                $fieldarray = $this->custom_validateUpdate($fieldarray, $fieldarray);
+            } // if
+        } // if
+
+        return $fieldarray;
+
+    } // validateUpdate
+
+    // ****************************************************************************
+    // methods beginning with '_cm_' are designed to be customised as required
+    // ****************************************************************************
+    function _cm_appendToCSV ($header, $rows)
+    // append more rows of data to the CSV output
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_appendToCSV
+
+    // ****************************************************************************
+    function _cm_blockchain_receive ($fieldarray)
+    // perform any adjustments after data is received via blockchain
+    {
+        // custom code goes here
+
+        return $fieldarray;
+
+    } // _cm_blockchain_receive
+
+    // ****************************************************************************
+    function _cm_blockchain_send ($fieldarray)
+    // perform any adjustments before data is sent out via blockchain
+    {
+        // custom code goes here
+
+        return $fieldarray;
+
+    } // _cm_blockchain_send
+
+    // ****************************************************************************
+    function _cm_changeActionButtons ($act_buttons)
+    // allow action buttons to be modified.
+    {
+        // custom code goes here
+
+        return $act_buttons;
+
+    } // _cm_changeActionButtons
+
+    // ****************************************************************************
+    function _cm_changeConfig ($where, $fieldarray)
+    // Change the table configuration for the duration of this instance.
+    // $where = a string in SQL 'where' format.
+    // $fieldarray = the contents of $where as an array.
+    {
+        // custom code goes here
+
+        return $fieldarray;
+
+    } // _cm_changeConfig
+
+    // ****************************************************************************
+    function _cm_commonValidation ($fieldarray, $originaldata)
+    // perform validation that is common to INSERT and UPDATE.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_commonValidation
+
+    // ****************************************************************************
+    function _cm_customButton ($fieldarray, $button)
+    // user pressed a custom button.
+    {
+        // custom code goes here
+
+        return $fieldarray;
+
+    } // _cm_customButton
+
+    // ****************************************************************************
+    function _cm_deleteSelection ($selection)
+    // delete/update a selection of records in a single operation.
+    {
+        // remove this line after your customisation
+        //trigger_error($this->getLanguageText('sys0035', get_class($this)), E_USER_ERROR); // "DELETESELECTION method has not been defined in class"
+
+        // delete selected records.
+        $from  = null;  // used in multi-table delete
+        $using = null;  // used in multi-table delete
+        $limit = null;  // maximum number of rows to process
+        $count = $this->_dml_deleteSelection($selection, $from, $using, $limit);
+
+        // update selected records
+        //$count = $this->_dml_updateSelection ($selection, $replace, $limit);
+
+        // $count rows were deleted
+        return $this->getLanguageText('sys0004', $count, strtoupper($this->tablename));
+
+    } // _cm_deleteSelection
+
+    // ****************************************************************************
+    function _cm_filePickerSelect ($selection)
+    // Deal with selection from a filepicker screen.
+    {
+        // custom code goes here
+
+        return $selection;
+
+    } // _cm_filePickerSelect
+
+    // ****************************************************************************
+    function _cm_fileUpload ($input_name, $temp_file, $where_array)
+    // Specify file name to be used for the upload.
+    // $input_name  = file name supplied by client
+    // $temp_file   = copy of file in temp directory
+    // $where_array  = contents of original $where string
+    // $output_name = file name to be used on server
+    {
+        // default name for destination file is same as input name
+        $output_name = $input_name;
+
+        return $output_name;
+
+    } // _cm_fileUpload
+
+    // ****************************************************************************
+    function _cm_filterWhere ($array=null)
+    // identify field names which are NOT to be filtered out of a $where string.
+    {
+        // custom code goes here
+        //$array[] = 'whatever';
+
+        return $array;
+
+    } // _cm_filterWhere
+
+    // ****************************************************************************
+    function _cm_formatData ($fieldarray, &$css_array)
+    // perform custom formatting before values are shown to the user.
+    // Note: $css_array is passed BY REFERENCE as it may be modified.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_formatData
+
+    // ****************************************************************************
+    function _cm_getColumnNames ($fieldarray)
+    // modify data to be used by 'std.output4.inc'.
+    {
+        // custom code goes here
+
+        return $fieldarray;
+
+    } // _cm_getColumnNames
+
+    // ****************************************************************************
+    function _cm_getDatabaseLock ()
+    // return array of database tables to be locked in current transaction.
+    {
+        $GLOBALS['lock_tables'] = FALSE;    // TRUE/FALSE
+        $GLOBALS['lock_rows']   = FALSE;    // FALSE, SR (share), EX (exclusive)
+
+        //$this->transaction_level = 'SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED';
+        //$this->transaction_level = 'SET TRANSACTION ISOLATION LEVEL READ COMMITTED';
+        //$this->transaction_level = 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ';  // *DEFAULT*
+        //$this->transaction_level = 'SET TRANSACTION ISOLATION LEVEL SERIALIZABLE';
+
+        // the format of each $lock_array entry is one of the following:
+        // $lock_array[] = 'tablename'         (within current database)
+        // $lock_array[] = 'dbname.tablename'  (within another database)
+        // $lock_array['READ'][] = '...'       (for a READ lock)
+        // $lock_array['WRITE'][] = '...'      (for a WRITE lock)
+        switch ($GLOBALS['mode']){
+            case 'insert':
+                $lock_array[] = $this->tablename;
+                break;
+            case 'update':
+                $lock_array[] = $this->tablename;
+                break;
+            case 'delete':
+                $lock_array[] = $this->tablename;
+                break;
+            default:
+                $lock_array = array();
+        } // switch
+
+        return $lock_array;
+
+    } // _cm_getDatabaseLock
+
+    // ****************************************************************************
+    function _cm_getEmailParams ($template_id, $where, $params, $entity_data, $party_data)
+    // get values to be inserted into the email template.
+    {
+        // custom code goes here
+
+        return $params;
+
+    } // _cm_getEmailParams
+
+    // ****************************************************************************
+    function _cm_getExcelLabelRownum ($label_rownum)
+    // get row number which contains the column headings in the current Excel worksheet.
+    {
+        // custom codce goes here
+        //$label_rownum = 3;
+
+        return $label_rownum;
+
+    } // _cm_getExcelLabelRownum
+
+    // ****************************************************************************
+    function _cm_getExtraData ($where, $fieldarray)
+    // Perform custom processing for the getExtraData method.
+    // $where = a string in SQL 'where' format.
+    // $fieldarray = the contents of $where as an array.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_getExtraData
+
+    // ****************************************************************************
+    function _cm_getFileBody ($fieldarray)
+    // if this row is associated with a file then its contents will be returned
+    // base64_encoded so that it can be included in an XML document.
+    // (see also putFileBody() for the reverse operation)
+    {
+        $filebody = false;
+        $filename = false;
+
+        // customisable code goes here
+
+        return array($filename, $filebody);
+
+    } // _cm_getFileBody
+
+    // ****************************************************************************
+    function _cm_getForeignData ($fieldarray, $rownum=null)
+    // Retrieve data from foreign (parent) tables.
+    // $rownum identifies current row number.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_getForeignData
+
+    // ****************************************************************************
+    function _cm_getInitialData ($fieldarray)
+    // Perform custom processing prior to insertRecord().
+    // $fieldarray contains data from the initial $where clause.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_getInitialData
+
+    // ****************************************************************************
+    function _cm_getInitialDataMultiple ($rows)
+    // Perform custom processing prior to insertMultiple.
+    // $rows contains data from the initial $where clause,
+    // or current data from the outer object (if one exists).
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_getInitialDataMultiple
+
+    // ****************************************************************************
+    function _cm_getNodeData ($expanded, $where, $where_array, $collapsed)
+    // retrieve requested node data from the database.
+    // $expanded may be a list of nodes to be expanded, or 'ALL' nodes.
+    // $collapsed may be a list of nodes to be collapsed instead of expanded.
+    // $where may contain specific selection criteria as a string.
+    // $wherearray is $where but converted into an array.
+    {
+        if (!array_key_exists('node_id_snr', $where_array)) {
+            // look for root nodes within this tree_type
+            $where_array['tree_level_seq'] = 1;
+            $where_array['node_id_snr']    = 'IS NULL';
+            $where = array2where($where_array);
+            $depth = 1;
+            $this->parent_object = null;  // top level nodes have no parents
+        } // if
+
+        list($dbname, $dbprefix, $dbms_engine) = findDBConfig($this->dbname);
+
+        $db_version = $this->findDBVersion();
+
+        switch ($dbms_engine) {
+            case 'sqlsrv':
+                $where = $this->_read_CTE_sqlsrv($where, $expanded, $collapsed);
+                break;
+            case 'pgsql':
+                $where = $this->_read_CTE_pgsql($where, $expanded, $collapsed);
+                break;
+            case 'oracle':
+                $where = $this->_read_CTE_oracle($where, $expanded, $collapsed);
+                break;
+            case 'mysql':
+                if ($db_version > '8.0.0') {
+                    $where = $this->_read_CTE_mysql8($where, $expanded, $collapsed);
+                    break;
+                } // if
+            default:
+                if ($expanded == 'ALL') {
+                    $this->rows_per_page = 0;  // cannot perform pagination, so read everything
+                    $this->pageno        = 1;
+                } // if
+                // read data without the use of a CTE (the old fashioned way)
+                $where = $this->_read_CTE_default($where, $expanded, $collapsed);
+        } // switch
+
+        if (!empty($this->alt_language_table)) {
+            if ($_SESSION['user_language'] != $_SESSION['default_language']) {
+                // link to table which provides text in an alternative language
+                $pkey_array = array();
+                foreach ($this->primary_key as $fieldname) {
+                    $pkey_array[$fieldname] = $fieldname;
+                } // foreach
+                $new_relation = array('parent' => $this->alt_language_table,
+                                      'parent_field' => $this->alt_language_cols,
+                                      'fields' => $pkey_array);
+                $new_relation['this'] = 'x_tree_node';
+                $this->sql_select = $this->_sqlSelectAlternateLanguage($this->sql_select, $new_relation);
+            } // if
+        } // if
+
+        $data_raw = $this->getData_raw($where);
+
+        $fieldarray      = array();
+        $this->expanded  = array();
+        $this->collapsed = array();
+        // save these in case a CTE is not used to build the hierarchy
+        $pageno          = $this->pageno;
+        $lastpage        = $this->lastpage;
+
+        if (is_True($this->CTE_in_use)) {
+            // all nodes have been read using a CTE, so this loop is not needed
+            $fieldarray = $data_raw;
+        } else {
+            // there is no pagination after level 1
+            $this->rows_per_page = 0;
+            $numrows = $this->numrows;
+            foreach ($data_raw as $row => $rowdata) {
+                $depth = $rowdata['node_depth'];
+                // append data for current node to output array
+                $fieldarray[] = $rowdata;
+                if ($rowdata['child_count'] > 0) {
+                    $node_id = $rowdata['node_id'];
+                    // child nodes exist, but do we expand them?
+                    if (is_array($collapsed) AND array_key_exists($node_id, $collapsed)) {
+                        // not this one
+                    } elseif ($expanded == 'ALL' or array_key_exists($node_id, $expanded)) {
+                        // tell system this row has been expanded
+                        $fieldarray[count($fieldarray)-1]['expanded'] = 'Y';
+                        // make sure the data for this parent row is available to its children
+                        $this->setParentObject($this);
+                        $this->setParentData($rowdata);
+                        // get the child nodes belonging to this parent node
+                        $where = "node_id_snr='$node_id'";
+                        $childdata = $this->getNodeData($expanded, $where, $collapsed);
+                        $numrows = $numrows + $this->numrows;
+                        // add in child data after the parent
+                        $fieldarray = array_merge($fieldarray, $childdata);
+                    } // if
+                    $this->numrows  = $numrows;
+                } // if
+            } // foreach
+        } // if
+
+        unset($data_raw);
+
+        if ($depth == 1) {
+            $this->pageno   = $pageno;
+            $this->lastpage = $lastpage;
+        } // if
+
+        $this->expanded  = $expanded;
+        $this->collapsed = $collapsed;
+
+        return $fieldarray;
+
+    } // _cm_getNodeData
+
+    // ****************************************************************************
+    function _cm_getNodeKeys ($keys)
+    // identify the field names for the SENIOR to JUNIOR relationship
+    {
+        $keys['snr_id'] = 'snr_id';
+        $keys['jnr_id'] = 'jnr_id';
+
+        return $keys;
+
+    } // _cm_getNodeKeys
+
+    // ****************************************************************************
+    function _cm_getOrderBy ($orderby)
+    // Adjust name of orderby item before it is used in an sql SELECT statement.
+    {
+        // customisable code goes here
+
+        return $orderby;
+
+    } // _cm_getOrderBy
+
+    // ****************************************************************************
+    function _cm_getPartyId_for_email ($fieldarray)
+    // identify the party_id to be used for sending an email.
+    {
+        $party_id = null;
+
+        // custom code goes here
+
+        return $party_id;
+
+    } // _cm_getPartyId_for_email
+
+    // ****************************************************************************
+    function _cm_getPkeyNames ($pkey_array, $task_id, $pattern_id)
+    // return the list of primary key fields in this table before the selection string
+    // is constructed and passed to another form.
+    // $pkey_array contains the current list of primary key fields.
+    // $task_id identifies the task to which the primary key(s) will be passed.
+    // $pattern_id identifies the task's pattern.
+    {
+        //$pkey_array[] = 'whatever';       // append to array
+        //$pkey_array = array('whatever');  // replace array
+
+        return $pkey_array;
+
+    } // _cm_getPkeyNames
+
+    // ****************************************************************************
+    function _cm_getUploadSubdir ($subdir)
+    // return the directory for uploading files
+    {
+        if (isset($this->upload_subdir)) {
+            return $this->upload_subdir;
+        } // if
+
+        return $subdir;
+
+    } // _cm_getUploadSubdir
+
+    // ****************************************************************************
+    function _cm_getValRep ($item, $where, $orderby)
+    // get Value/Representation list as an associative array.
+    {
+        $array = array();
+
+//        if ($item == 'item1_id') {
+//            // get data from the database
+//            $this->sql_select     = 'item1_id, item1_desc';
+//            $this->sql_orderby    = 'item1_desc';
+//            $this->sql_ordery_seq = 'asc';
+//            $data = $this->getData($where);
+//
+//            // convert each row into 'id=desc' in the output array
+//            foreach ($data as $row => $rowdata) {
+//                $rowvalues = array_values($rowdata);
+//                $array[$rowvalues[0]] = $rowvalues[1];
+//            } // foreach
+//
+//            return $array;
+//
+//        } // if
+
+//        if ($item == 'item2') {
+//            $array = $this->getLanguageArray('item2');
+//            return $array;
+//        } // if
+
+        return $array;
+
+    } // _cm_getValRep
+
+    // ****************************************************************************
+    function _cm_getWhere ($where, $task_id, $pattern_id)
+    // allow WHERE string to be customised before being passed to next task.
+    {
+        // custom code goes here
+
+        return $where;
+
+    } // _cm_getWhere
+
+    // ****************************************************************************
+    function _cm_initialise ($where, &$selection, $search)
+    // perform any initialisation for the current task.
+    // NOTE: $selection is passed by reference as it may be amended.
+    // NOTE: $search    is only available for OUTPUT tasks.
+    {
+        // customisable code goes here
+
+//        $pattern_id = getPatternId();
+//        if (preg_match('/^(add|srch)/i', $pattern_id)) {
+//            // ignore contents of selection
+//            $selection = null;
+//        } else {
+//            if (!empty($selection)) {
+//                $where     = $selection;
+//                $selection = null;
+//            } // if
+//        } // if
+
+        return $where;
+
+    } // _cm_initialise
+
+    // ****************************************************************************
+    function _cm_initialiseFileDownload ($fieldarray)
+    // perform any initialisation for the file download operation.
+    {
+        //$this->download_filename = $fieldarray['download_filename'];
+        //$this->download_mode     = 'inline';  // disable option to save
+
+        return $fieldarray;
+
+    } // _cm_initialiseFileDownload
+
+    // ****************************************************************************
+    function _cm_initialiseFilePicker ($fieldarray, $search)
+    // perform any initialisation before displaying the File Picker screen.
+    {
+        // identify the subdirectory which contains the files
+        $this->picker_subdir      = 'filepickersubdirectory';
+
+        // identify the file types that may be picked
+        $this->picker_filetypes   = array();  // default is ANY file extension
+        $this->picker_filetypes   = array('txt', 'bmp', 'doc');
+
+        // if a file is uploaded then return it as it it was selected.
+        $this->return_uploaded_file = true;;
+
+        return $fieldarray;
+
+    } // _cm_initialiseFilePicker
+
+    // ****************************************************************************
+    function _cm_initialiseFileUpload ($fieldarray)
+    // perform any initialisation before displaying the File Upload screen.
+    {
+        if (empty($this->upload_subdir)) {
+            $this->upload_subdir  = 'uploadedfiles';
+        } // if
+        //$this->upload_filetypes   = array('image/x-png', 'image/gif');
+        $this->upload_filetypes   = 'image';  // for any type of image
+        //$this->upload_maxfilesize = 1000000;
+        //$this->upload_blacklist   = array("\.php.*", "\..*htm.*");
+        //$this->allow_multiple     = false;
+
+        $this->fieldarray = $fieldarray;
+
+        return $fieldarray;
+
+    } // _cm_initialiseFileUpload
+
+    // ****************************************************************************
+    function _cm_ListView_header ($fieldarray)
+    // insert data into $fieldarray before title is printed in List View
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_ListView_header
+
+    // ****************************************************************************
+//    function _cm_ListView_pre_print ($prev_row, $curr_row)
+//    // allow extra rows to be created in List View
+//    {
+//        $rows = array();
+//
+//        // this is deprecated - use _cm_ListView_print_before() and _cm_ListView_print_after() instead
+//
+//        return $rows;
+//
+//    } // _cm_ListView_pre_print
+
+    // ****************************************************************************
+    function _cm_ListView_print_before ($prev_row, $curr_row)
+    // allow extra rows to be created in List View
+    {
+        $output = array();
+
+        // customisable code goes here
+
+        return $output;
+
+    } // _cm_ListView_print_before
+
+    // ****************************************************************************
+    function _cm_ListView_print_after ($curr_row, $next_row)
+    // allow extra rows to be created in List View
+    {
+        $output = array();
+
+        // customisable code goes here
+
+        return $output;
+
+    } // _cm_ListView_print_after
+
+    // ****************************************************************************
+    function _cm_ListView_total ()
+    // pass back any data to be printed on last line of PDF report (list view).
+    {
+        $array = array();
+
+        // customisable code goes here
+
+        return $array;
+
+    } // _cm_ListView_total
+
+    // ****************************************************************************
+    function _cm_output_multi ($name, $fieldarray)
+    // get extra data to pass to PDF class.
+    {
+        $outarray = array();
+
+        switch ($name) {
+            case 'multi1':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi2':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi3':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi4':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi5':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi6':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi7':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi8':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            case 'multi9':
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+
+            default:
+                // return a non-empty array to print an empty line
+                $outarray[] = array('dummy' => '');
+                break;
+        } // switch
+
+        if (!empty($outarray)) {
+            return $outarray;
+        } else {
+            return false;
+        } // if
+
+    } // _cm_output_multi
+
+    // ****************************************************************************
+    function _cm_performAction ($fieldarray, $action)
+    // perform an action on the specified row
+    {
+        // custom code goes here
+
+        return $fieldarray;
+
+    } // _cm_performAction
+
+    // ****************************************************************************
+    function _cm_popupCall (&$popupname, $where, $fieldarray, &$settings, $offset)
+    // if a popup button has been pressed the contents of $where may need to
+    // be altered before the popup screen is called.
+    // NOTE: $settings is passed BY REFERENCE as it may be altered as well.
+    // NOTE: $popupname is passed BY REFERENCE as it may be altered as well.
+    // NOTE: $offset identifies the row nunber (if there is more than one)
+    {
+        // clear out the contents of $where
+        //$where = '';
+
+        // allow only one entry to be selected (the default)
+        $settings['select_one'] = true;
+
+        // allow more than one entry to be selected
+        //$settings['select_one'] = false;
+
+        // allow a single result to be selected without user intervention
+        //$settings['choose_single_row'] = true;
+
+        //if ($popupname == 'foo(bar)') {
+        //    // replace $where for this popup
+        //    $where = "$where";
+        //} else {
+        //    $where = '';
+        //} // if
+
+        return $where;
+
+    } // _cm_popupCall
+
+    // ****************************************************************************
+    function _cm_popupReturn ($fieldarray, $return_from, &$select_array, $return_files)
+    // process a selection returned from a popup screen.
+    // $fieldarray contains the record data when the popup button was pressed.
+    // $return_from identifies which popup screen was called.
+    // $select_array contains an array of item(s) selected in that popup screen.
+    // $return_files contains a list of all files loaded via a fileupload task.
+    // NOTE: $select_array is passed BY REFERENCE so that it can be modified.
+    {
+        //if ($return_from == '???(popup)') {
+        //    // change field name from 'foo_id' to 'bar_id'
+        //    $select_array['bar_id'] = $select_array['foo_id'];
+        //    unset($select_array['foo_id']);
+        //} // if
+
+        return $fieldarray;
+
+    } // _cm_popupReturn
+
+    // ****************************************************************************
+    function _cm_post_deleteMultiple ($rows)
+    // perform custom processing after multiple database records have been deleted.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_post_deleteMultiple
+
+    // ****************************************************************************
+    function _cm_post_deleteRecord ($fieldarray)
+    // perform custom processing after database record has been deleted.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_deleteRecord
+
+    // ****************************************************************************
+    function _cm_post_eraseRecord ($fieldarray)
+    // perform custom processing after database record has been erased.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_eraseRecord
+
+    // ****************************************************************************
+    function _cm_post_fetchRow ($fieldarray)
+    // perform custom processing after a call to fetchRow().
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_fetchRow
+
+    // ****************************************************************************
+    function _cm_post_fileUpload ($filename, $filesize)
+    // perform processing after a file has been uploaded.
+    {
+        // custom processing goes here
+
+        return $filename;
+
+    } // _cm_post_fileUpload
+
+    // ****************************************************************************
+    function _cm_post_getData ($rows, &$where)
+    // perform custom processing after database record(s) are retrieved.
+    // NOTE: $where is passed BY REFERENCE so that it may be modified.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_post_getData
+
+    // ****************************************************************************
+    function _cm_post_insertMultiple ($rows)
+    // perform custom processing after multiple database records are inserted.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_post_insertMultiple
+
+    // ****************************************************************************
+    function _cm_post_insertOrUpdate ($fieldarray, $insert_count, $update_count)
+    // perform custom processing at end of insertOrUpdate() method.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_insertOrUpdate
+
+    // ****************************************************************************
+    function _cm_post_insertRecord ($fieldarray)
+    // perform custom processing after database record has been inserted.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_insertRecord
+
+    // ****************************************************************************
+    function _cm_post_lastRow ()
+    // perform custom processing after last record has been read.
+    {
+        $fieldarray = array();
+
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_lastRow
+
+    // ****************************************************************************
+    function _cm_post_output ($string, $filename)
+    // perform any processing required after the output operation
+    {
+        // customisable code goes here
+
+        return $string;
+
+    } // _cm_post_output
+
+    // ****************************************************************************
+    function _cm_post_popupReturn ($fieldarray, $return_from, $select_array, $return_files)
+    // perform any post-popup processing.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_popupReturn
+
+    // ****************************************************************************
+    function _cm_post_search ($search, $selection)
+    // perform any post-search processing.
+    {
+        // customisable code goes here
+
+        return $search;
+
+    } // _cm_post_search
+
+    // ****************************************************************************
+    function _cm_post_updateLinkdata ($rows, $postarray)
+    // perform custom processing after multiple database records have been updated.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_post_updateLinkData
+
+    // ****************************************************************************
+    function _cm_post_updateMultiple ($rows)
+    // perform custom processing after multiple database records have been updated.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_post_updateMultiple
+
+    // ****************************************************************************
+    function _cm_post_updateRecord ($fieldarray, $old_data)
+    // perform custom processing after database record is updated.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_post_updateRecord
+
+    // ****************************************************************************
+    function _cm_post_updateSelection ($selection, $replace)
+    // allow changes to be made after _cm_updateSelection method has been called.
+    {
+        // custom code goes here
+
+        return $selection;
+
+    } // _cm_post_updateSelection
+
+    // ****************************************************************************
+    function _cm_pre_cascadeDelete ($fieldarray)
+    // perform custom processing before database record is deleted as part of a
+    // cascade delete.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_pre_cascadeDelete
+
+    // ****************************************************************************
+    function _cm_pre_deleteMultiple ($rows)
+    // perform custom processing before multiple database records are deleted.
+    // if anything is placed in $this->errors the delete will be terminated.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_pre_deleteMultiple
+
+    // ****************************************************************************
+    function _cm_pre_deleteRecord ($fieldarray)
+    // perform custom processing before database record is deleted.
+    // if anything is placed in $this->errors the deletion will be terminated.
+    {
+        // customisable code goes here
+
+        // do not reuse existing customised SELECT statement in _dml_ReadBeforeUpdate() method
+        //$this->reuse_previous_select = false;
+
+        return $fieldarray;
+
+    } // _cm_pre_deleteRecord
+
+    // ****************************************************************************
+    function _cm_pre_eraseRecord ($fieldarray)
+    // perform custom processing before database record is erased.
+    // if anything is placed in $this->errors the erasure will be terminated.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_pre_eraseRecord
+
+    // ****************************************************************************
+    function _cm_pre_getData ($where, $where_array, $parent_data)
+    // perform custom processing before database record(s) are retrieved.
+    // (WHERE is supplied in two formats - string and array)
+    // $parent_data may contain contents of current record in the parent object.
+    {
+        // customisable code goes here
+
+//        if (empty($this->sql_from)) {
+//            // construct default SELECT and FROM clauses using parent relations
+//            $this->sql_from    = null;
+//            $this->sql_groupby = null;
+//            $this->sql_having  = null;
+//            $this->sql_union   = null;
+//            $this->sql_from    = $this->_sqlForeignJoin($this->sql_select, $this->sql_from, $this->parent_relations);
+//        } // if
+
+        return $where;
+
+    } // _cm_pre_getData
+
+    // ****************************************************************************
+    function _cm_pre_insertMultiple ($rows)
+    // perform custom processing before multiple database records are inserted.
+    // if anything is placed in $this->errors the insert will be terminated.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_pre_insertMultiple
+
+    // ****************************************************************************
+    function _cm_pre_insertOrUpdate ($rows)
+    // perform custom processing at start of insertOrUpdate() method.
+    // if anything is placed in $this->errors the operation will be terminated.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_pre_insertOrUpdate
+
+    // ****************************************************************************
+    function _cm_pre_insertRecord ($fieldarray)
+    // perform custom processing before database record is inserted.
+    // if anything is placed in $this->errors the insert will be terminated.
+    {
+        // custom code goes here
+
+        return $fieldarray;
+
+    } // _cm_pre_insertRecord
+
+    // ****************************************************************************
+    function _cm_pre_output ($filename)
+    // perform any processing required before the output operation.
+    // $filename is only available if the output is being sent to a disk file.
+    {
+        // customisable code goes here
+
+        return $filename;
+
+    } // _cm_pre_output
+
+    // ****************************************************************************
+    function _cm_pre_updateLinkdata ($rows, &$postarray)
+    // $rows is an array of field data (multiple rows).
+    // $postarray is an array of entries which have been selected.
+    // NOTE: $postarray is passed BY REFERENCE so that it may be modified.
+    // NOTE: $rows starts at 0, $select starts at 1.
+    // if anything is placed in $this->errors the update will be terminated.
+    {
+        // customisable code goes here
+
+        // do not reuse existing customised SELECT statement in _dml_ReadBeforeUpdate() method
+        //$this->reuse_previous_select = false;
+
+        return $rows;
+
+    } // _cm_pre_updateLinkData
+
+    // ****************************************************************************
+    function _cm_pre_updateMultiple ($rows)
+    // perform custom processing before multiple database records are updated.
+    {
+        // customisable code goes here
+
+        return $rows;
+
+    } // _cm_pre_updateMultiple
+
+    // ****************************************************************************
+    function _cm_pre_updateRecord ($fieldarray)
+    // perform custom processing before database record is updated.
+    // errors are added to $this->errors.
+    {
+        //$this->row_locks = 'SH';    // shared
+        //$this->row_locks = 'EX';    // exclusive
+        //$this->row_locks_supp = '?' // DBMS-specific
+
+        // do not reuse existing customised SELECT statement in _dml_ReadBeforeUpdate() method
+        //$this->reuse_previous_select = false;
+
+        return $fieldarray;
+
+    } // _cm_pre_updateRecord
+
+    // ****************************************************************************
+    function _cm_pre_updateSelection ($selection, $replace)
+    // allow changes to be made before _cm_updateSelection method is called.
+    {
+        // custom code goes here
+
+        return $selection;
+
+    } // _cm_pre_updateSelection
+
+    // ****************************************************************************
+    function _cm_putFileBody ($fieldarray, $body)
+    // if this row is associated with a file then its contents will be returned
+    // base64_encoded so that it can be written to where it belongs.
+    // (this is the reverse of the getFileBody() operation)
+    {
+        $result = false;
+
+        // custom code goes here
+
+        return $result;
+
+    } // _cm_putFileBody
+
+    // ****************************************************************************
+    function _cm_reset ($where)
+    // perform custom processing after RESET button is pressed.
+    {
+        // customisable code goes here
+
+        return;
+
+    } // _cm_reset
+
+    // ****************************************************************************
+    function _cm_quitButton ()
+    // perform custom processing after QUIT button is pressed.
+    {
+        // customisable code goes here
+
+        return;
+
+    } // _cm_quitButton
+
+    // ****************************************************************************
+    function _cm_restart ($pattern_id, $zone, $return_from, $return_action, $return_string, $return_files)
+    // script is being restarted after running a child form, so check for further action.
+    {
+        // custom code goes here
+
+        return;
+
+    } // _cm_restart
+
+    // ****************************************************************************
+    function _cm_setExcelPreLabelData ($data)
+    // load rows of data which appeared before the column headings in the current Excel worksheet.
+    // (only used when ->getExcelLabelRownum() returns a value greater than 1)
+    {
+        $this->pre_label_data = $data;
+
+        return;
+
+    } // _cm_setExcelPreLabelData
+
+    // ****************************************************************************
+    function _cm_setJavaScript ($javascript)
+    // insert any javascript to be included in the <HEAD> or <BODY> elements.
+    {
+
+        // customisable code goes here
+        //$javascript['head'][]['file'] = '...';
+        //$javascript['head'][]['code'] = '...';
+
+        //$javascript['body']['onload'] = '...';
+        //$javascript['body']['onunload'] = '...';
+
+        //$javascript['tbody']['onload'] = '...';
+        //$javascript['tbody']['onunload'] = '...';
+
+        //$javascript['script']['whatever'] = '...';
+
+		return $javascript;
+
+    } // _cm_setJavaScript
+
+    // ****************************************************************************
+    function _cm_setScrollArray ($where, $where_array)
+    // construct an array of primary keys to scroll through
+    {
+        $array = array();
+
+        $array = splitWhereByRow($where);    // default - replace with custom code
+
+        return $array;
+
+    } // _cm_setScrollArray
+
+    // ****************************************************************************
+    function _cm_unFormatData ($fieldarray)
+    // remove custom formatting before values are passed to the database.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_unFormatData
+
+    // ****************************************************************************
+    function _cm_updateFieldarray ($fieldarray, &$postarray, $rownum)
+    // allow object to deal with any changes POSTed from the form via javascript submit().
+    // $fieldarray contains current data from one row.
+    // $postarray contains any changes made in the form for this row.
+    // $rownum identifies which row is being processed.
+    // NOTE: the contents of $postarray will be mered with $fieldarray after this call.
+    // $postarray is PASSED BY REFERENCE to allow you to remove unwanted values.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_updateFieldarray
+
+    // ****************************************************************************
+    function _cm_updateSelection ($selection, $replace)
+    // update multiple rows in a single operation.
+    {
+        if ($this->dbname == 'unknown' AND $this->tablename == 'unknown') {
+            // possibly called from custom processing object, so do nothing
+            return;
+        } // if
+
+        if (!is_string($selection) OR empty($replace)) {
+            // this combination is not valid
+            return;
+        } else {
+            // this is the default code, which may be replaced if necessary
+            $count = $this->_dml_updateSelection($selection, $replace);
+
+            // '$count records were updated in $tablename'
+            return $this->getLanguageText('sys0006', $count, strtoupper($this->tablename));
+        } // if
+
+    } // _cm_updateSelection
+
+    // ****************************************************************************
+    function _cm_validateChooseButton ($selection, $selected_rows)
+    // the CHOOSE button has been pressed, so validate the selection.
+    // $selection = an array of WHERE strings for each selected row.
+    // $selected_rows = an array indicating which rows were selected.
+    {
+        // customisable code goes here
+
+        return;
+
+    } // _cm_validateChooseButton
+
+    // ****************************************************************************
+    function _cm_validateDelete ($fieldarray, $parent_table)
+    // verify that the selected record can be deleted.
+    // ($parent_table is only used in a cascade delete)
+    // if anything is placed in $this->errors the delete will be terminated.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_validateDelete
+
+    // ****************************************************************************
+    function _cm_validateInsert ($fieldarray)
+    // perform custom validation before an insert.
+    // if anything is placed in $this->errors the insert will be terminated.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_validateInsert
+
+    // ****************************************************************************
+    function _cm_validateSearch ($fieldarray)
+    // perform custom validation on data entered via a search screen.
+    // put any errors into $this->errors.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_validateSearch
+
+    // ****************************************************************************
+    function _cm_validateUpdate ($fieldarray, $originaldata)
+    // perform custom validation before update.
+    // if anything is placed in $this->errors the update will be terminated.
+    {
+        // customisable code goes here
+
+        return $fieldarray;
+
+    } // _cm_validateUpdate
+
+    // ****************************************************************************
+    // methods beginning with '_ddl_' are for calling the Database Access object
+    // (for commands using the Data Definition Language)
+    // ****************************************************************************
+    function _ddl_getColumnSpecs ($dbname=null)
+    // obtain column specifications.
+    {
+        if ($dbname === null) $dbname = $this->dbname;
+        $DDL =& $this->_getDBMSengine($dbname);
+
+        $array = $DDL->ddl_getColumnSpecs();
+
+        return $array;
+
+    } // _ddl_getColumnSpecs
+
+    // ****************************************************************************
+    function _ddl_showColumns($dbname, $tablename)
+    // obtain a list of column names for the selected database table.
+    {
+        $DDL =& $this->_getDBMSengine($dbname);
+
+        $array = $DDL->ddl_showColumns($DDL->dbname, $tablename);
+
+        return $array;
+
+    } // _ddl_showColumns
+
+    // ****************************************************************************
+    function _ddl_showCreateTable ($dbname, $tablename)
+    // obtain a list of column names for the selected database table.
+    {
+        $DDL =& $this->_getDBMSengine($dbname);
+
+        $array = $DDL->ddl_showCreateTable($DDL->dbname, $tablename);
+
+        return $array;
+
+    } // _ddl_showCreateTable
+
+    // ****************************************************************************
+    function _ddl_showDatabases ($dbprefix)
+    // obtain a list of existing database names.
+    {
+        $DDL =& $this->_getDBMSengine($this->dbname);
+
+        $array = $DDL->ddl_showDatabases($dbprefix);
+
+        return $array;
+
+    } // _ddl_showDatabases
+
+    // ****************************************************************************
+    function _ddl_showTables ($dbname)
+    // obtain a list of table names for the selected database.
+    {
+        $DDL =& $this->_getDBMSengine($dbname);
+
+        $array = $DDL->ddl_showTables($DDL->dbname);
+
+        return $array;
+
+    } // _ddl_showTables
+
+    // ****************************************************************************
+    function _ddl_showTableKeys ($dbname, $tablename)
+    // obtain a list of existing database names.
+    {
+        $DDL =& $this->_getDBMSengine($dbname);
+
+        $array = $DDL->ddl_showTableKeys($DDL->dbname, $tablename);
+
+        return $array;
+
+    } // _ddl_showTableKeys
+
+    // ****************************************************************************
+    // methods beginning with '_dml_' are for calling the Database Access object
+    // (for commands using the Data Manipulation Language)
+    // ****************************************************************************
+    function _dml_deleteRecord ($fieldarray)
+    // delete the record whose primary key is contained within $fieldarray.
+    {
+        if (empty($fieldarray)) {
+            return;  // nothing to delete
+        } // if
+
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $DML->fieldspec             = $this->fieldspec;
+        $DML->audit_logging         = $this->audit_logging;
+        $DML->primary_key           = $this->getPkeyNames();
+        $DML->no_abort_on_lock_wait = $this->no_abort_on_lock_wait;
+
+        // remove any non-database fields from input array
+        foreach ($fieldarray as $field => $fieldvalue) {
+            // check that $field exists in $fieldspec array
+            if (!array_key_exists($field, $DML->fieldspec)) {
+                // it does not (like the SUBMIT button, for example), so remove it
+                unset($fieldarray[$field]);
+            } // if
+        } // foreach
+
+        $DML->deleteRecord($this->dbname_server, $this->tablename, $fieldarray);
+
+        $this->errors  = array_merge($DML->getErrors(), $this->errors);
+
+        $this->numrows = $DML->getNumRows();
+        if ($this->numrows > 0) {
+            $this->delete_count   = $this->numrows;
+        } else {
+            $this->unchange_count = 1;
+        } // if
+        $this->lock_wait_count = $DML->lock_wait_count;
+
+        return;
+
+    } // _dml_deleteRecord
+
+    // ****************************************************************************
+    function _dml_adjustWhere ($string_in)
+    // the DBMS may require different escape characters, so adjust as necessary.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        if (method_exists($DML, 'adjustWhere')) {
+            $string_out = $DML->adjustWhere($string_in);
+        } else {
+            $string_out = $string_in;
+        } // if
+
+        return $string_out;
+
+    } // _dml_adjustWhere
+
+    // ****************************************************************************
+    function _dml_deleteSelection ($selection, $from=null, $using=null, $limit=0)
+    // delete a selection of records in a single operation.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $DML->fieldspec     = $this->fieldspec;
+        $DML->audit_logging = $this->audit_logging;
+
+        if (!$this->audit_logging OR defined('TRANSIX_NO_AUDIT') OR defined('NO_AUDIT_LOGGING')) {
+            // no audit logging, so delete everything in one operation
+            $count = $DML->deleteSelection($this->dbname_server, $this->tablename, $selection, $from, $using);
+            $this->errors = array_merge($DML->getErrors(), $this->errors);
+        } else {
+            $this->sqlSelectInit();
+            $rows_per_page       = $this->rows_per_page;    // save
+            $this->setRowsPerPage($limit);
+            // audit logging is ON, so fetch everything and delete one row at a time
+            $resource = $this->_dml_getData_serial($selection);
+            $this->setRowsPerPage($rows_per_page);          // restore
+            $count    = $this->numrows;
+            $errors   = array();
+            while ($row = $this->fetchRow($resource)) {
+                $this->deleteRecord($row);
+                $errors = array_merge($this->getErrors(), $errors);
+            } // while
+            $this->errors = $errors;
+            $res = $this->_dml_free_result($resource);
+        } // if
+
+        $this->numrows = $count;
+
+        return $count;
+
+    } // _dml_deleteSelection
+
+    // ****************************************************************************
+    function _dml_free_result ($resource)
+    // Get count of recors which match criteria in $where.
+    {
+        $this->serial_table = $this->dbname.'_'.$this->tablename;
+        $DML =& $this->_getDBMSengine($this->dbname);
+        $this->serial_table = null;
+
+        $result = $DML->free_result($DML->dbname, $resource);
+
+        return $result;
+
+    } // _dml_free_result
+
+    // ****************************************************************************
+    function _dml_getCount ($where)
+    // Get count of recors which match criteria in $where.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $count = $DML->getCount($this->dbname_server, $this->tablename, $where);
+
+        if (is_null($count)) {
+            $count = 0;
+        } // if
+
+        $this->errors = array_merge($DML->getErrors(), $this->errors);
+        $this->lock_wait_count = $DML->lock_wait_count;
+
+        return $count;
+
+    } // _dml_getCount
+
+    // ****************************************************************************
+    function _dml_getData ($where, $raw=false)
+    // Get data from the specified database table.
+    // Results may be affected by $where and $pageno.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $DML->fieldspec        = $this->fieldspec;
+        $DML->primary_key      = $this->getPkeyNames();
+        $DML->pageno           = $this->pageno;
+        $DML->rows_per_page    = $this->rows_per_page;
+        $DML->skip_offset      = $this->skip_offset;
+        $DML->sql_select       = $this->sql_select;
+        $DML->sql_from         = $this->sql_from;
+        $DML->sql_groupby      = $this->sql_groupby;
+        $DML->sql_having       = $this->sql_having;
+        $DML->sql_union        = $this->sql_union;
+        $DML->sql_orderby      = $this->getOrderBy();
+        $DML->sql_orderby_seq  = $this->sql_orderby_seq;
+        if (!empty($DML->sql_orderby) AND $raw === true AND !is_True($this->CTE_in_use)) {
+            $DML->sql_orderby  = validateSortItem2 ($DML->sql_orderby, $DML->sql_select, $DML->fieldspec);
+        } // if
+        $this->prev_sql_orderby = $DML->sql_orderby;
+
+        $DML->sql_CTE_name      = $this->sql_CTE_name;
+        $DML->sql_CTE_select    = $this->sql_CTE_select;
+        $DML->sql_CTE_anchor    = $this->sql_CTE_anchor;
+        $DML->sql_CTE_recursive = $this->sql_CTE_recursive;
+        $DML->sql_search        = $this->sql_search;
+
+        $DML->sql_where_append = $this->sql_where_append;
+
+        $DML->setRowLocks($this->row_locks);
+
+        $array = $DML->getData($this->dbname_server, $this->tablename, $where);
+
+        $this->errors   = array_merge($DML->getErrors(), $this->errors);
+        $this->numrows  = $DML->getNumRows();
+        $this->pageno   = $DML->getPageNo();
+        $this->lastpage = $DML->getLastPage();
+
+        $this->sql_groupby       = $this->sql_groupby_orig;
+        $this->sql_having        = null;
+        $this->sql_union         = null;
+        $this->sql_CTE_name      = null;
+        $this->sql_CTE_select    = null;
+        $this->sql_CTE_anchor    = null;
+        $this->sql_CTE_recursive = null;
+        $this->sql_where_append  = null;
+
+        return $array;
+
+    } // _dml_getData
+
+    // ****************************************************************************
+    function _dml_getData_serial ($where=null, $rdc_limit=null, $rdc_offset=null, $unbuffered_query=false)
+    // Issue an SQL query and return result, not an array of data.
+    // Individual rows will be returned using the fetchRow() method.
+    {
+        $this->errors = array();
+
+        // for SQLSRV it is not possible to perform a serial read on a table and perform a
+        // "begin transaction" on the same connection, so a separate connection is required
+        $this->serial_table = $this->dbname.'_'.$this->tablename;
+        $DML =& $this->_getDBMSengine($this->dbname, $unbuffered_query);
+        $this->serial_table = null;
+
+        $DML->fieldspec        = $this->fieldspec;
+        $DML->primary_key      = $this->getPkeyNames();
+        $DML->pageno           = $this->pageno;
+        $DML->rows_per_page    = $this->rows_per_page;
+        $DML->sql_select       = $this->sql_select;
+        $DML->sql_from         = $this->sql_from;
+        $DML->sql_groupby      = $this->sql_groupby;
+        $DML->sql_having       = $this->sql_having;
+        $DML->sql_union        = $this->sql_union;
+        $DML->sql_orderby      = $this->getOrderBy();
+        $DML->sql_orderby_seq  = $this->sql_orderby_seq;
+
+        $DML->sql_CTE_name      = $this->sql_CTE_name;
+        $DML->sql_CTE_select    = $this->sql_CTE_select;
+        $DML->sql_CTE_anchor    = $this->sql_CTE_anchor;
+        $DML->sql_CTE_recursive = $this->sql_CTE_recursive;
+        $DML->sql_search        = $this->sql_search;
+
+        $result = $DML->getData_serial($this->dbname_server, $this->tablename, $where, $rdc_limit, $rdc_offset);
+
+        $this->numrows  = $DML->getNumRows();
+
+        $this->sql_groupby       = $this->sql_groupby_orig;
+        $this->sql_having        = null;
+        $this->sql_union         = null;
+        $this->sql_CTE_name      = null;
+        $this->sql_CTE_select    = null;
+        $this->sql_CTE_anchor    = null;
+        $this->sql_CTE_recursive = null;
+
+        //$this->instance_name = $DML->instance_name;
+
+        return $result;
+
+    } // _dml_getData_serial
+
+    // ****************************************************************************
+    function _dml_getEnum ($item)
+    // Get the details of an ENUM item from the database.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $array = $DML->getEnum($this->dbname_server, $this->tablename, $item);
+
+        $this->errors = array_merge($DML->getErrors(), $this->errors);
+
+        return $array;
+
+    } // _dml_getEnum
+
+    // ****************************************************************************
+    function _dml_insertRecord ($fieldarray)
+    // insert a record using the contents of $fieldarray.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        // use ORIGINAL, not CURRENT specifications for this database table
+        $DML->fieldspec               = $this->getFieldSpec_original();
+        // include other important variables
+        $DML->primary_key             = $this->getPkeyNames();
+        $DML->unique_keys             = $this->unique_keys;
+        $DML->audit_logging           = $this->audit_logging;
+        $DML->no_duplicate_error      = $this->no_duplicate_error;
+        $DML->retry_on_duplicate_key  = $this->retry_on_duplicate_key;
+        $DML->update_on_duplicate_key = $this->update_on_duplicate_key;
+        $DML->allow_db_function       = $this->allow_db_function;
+        $DML->no_abort_on_lock_wait   = $this->no_abort_on_lock_wait;
+
+        // remove any non-database fields from input array
+        foreach ($fieldarray as $field => $fieldvalue) {
+            // check that $field exists in $fieldspec array
+            if (!array_key_exists($field, $DML->fieldspec)) {
+                // it does not (like the SUBMIT button, for example), so remove it
+                unset ($fieldarray[$field]);
+            } // if
+        } // foreach
+
+        $array = $DML->insertRecord($this->dbname_server, $this->tablename, $fieldarray);
+
+        $this->errors  = array_merge($this->errors, $DML->getErrors());
+        if (isset($this->messages)) {
+            if (!is_array($this->messages)) {
+                $this->messages = (array)$this->messages;
+            } // if
+        } else {
+            $this->messages = array();
+        } // if
+        if (method_exists($DML, 'getMessages')) {
+            $this->messages = array_merge($this->messages, $DML->getMessages());
+        } // if
+
+        $this->numrows = $DML->numrows;
+        if ($this->numrows > 0) {
+            $this->insert_count   = $this->numrows;
+        } else {
+            $this->unchange_count = 1;
+        } // if
+
+        $this->query = $DML->query;  // save this in case trigger_error() is called
+
+        $this->retry_on_duplicate_key  = '';
+        $this->update_on_duplicate_key = false;
+        $this->no_duplicate_error      = false;
+        $this->allow_db_function       = array();
+        $this->lock_wait_count         = $DML->lock_wait_count;
+
+        return $array;
+
+    } // _dml_insertRecord
+
+    // ****************************************************************************
+    function _dml_multiQuery ($query)
+    // perform one or more SQL queries in a single step. (DEPRECATED)
+    {
+        $result = $this->executeQuery($query);
+
+        return $result;
+
+    } // _dml_multiQuery
+
+    // ****************************************************************************
+    function _dml_ReadBeforeUpdate ($where, $reuse_previous_select=true)
+    // Read a single record just before it is updated.
+    // The primary key should be supplied in $where.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $DML->fieldspec        = $this->fieldspec;
+        $DML->pageno           = 1;
+        $DML->rows_per_page    = 0;
+        if (is_True($reuse_previous_select)) {
+            if (empty($this->sql_select)) {
+                // has not been constructed yet, so do it now
+                $where_array = where2array($where);
+                $parent_data =& $this->getParentData();
+                $checkPrimaryKey = $this->checkPrimaryKey;  // save
+                $this->checkPrimaryKey = true;  // change
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_pre_getData')) {
+                        $where = $this->custom_processing_object->_cm_pre_getData($where, $where_array, $parent_data);
+                    } // if
+                } // if
+                if ($this->errors) return;
+                if ($this->custom_replaces_standard) {
+                    $this->custom_replaces_standard = false;
+                } else {
+                    $where = $this->_cm_pre_getData($where, $where_array, $parent_data);
+                    if ($this->errors) return;
+                } // if
+                $this->checkPrimaryKey = $checkPrimaryKey;  // restore
+                if (empty($this->sql_select)) {
+                    // still empty, so execute default code
+                    $this->sql_from    = null;
+                    $this->sql_groupby = null;
+                    $this->sql_having  = null;
+                    $this->sql_union   = null;
+                    $this->sql_from    = $this->_sqlForeignJoin($this->sql_select, $this->sql_from, $this->parent_relations);
+                } // if
+            } // if
+            $having_array = array();
+            $where = qualifyWhere($where, $this->tablename, $this->fieldspec, $this->sql_from, null, null, $having_array);
+            // use previous SELECT statement
+            $DML->sql_select       = $this->sql_select;
+            if (!empty($DML->sql_select)) {
+                // ensure this selects ALL fields from the primary table
+                if ($DML->sql_select == '*' OR preg_match('/' .$this->tablename .'\.\*/', $DML->sql_select)) {
+                    // all fields selected, so ignore next bit
+                } else {
+                    // see if the table name has an alias
+                    $aliasnames = extractTableNames($this->sql_from);
+                    // switch array from 'alias=name' to 'name=alias'
+                    $aliasnames = array_flip($aliasnames);
+                    if (!array_key_exists($this->tablename, $aliasnames)) {
+                        $aliasnames[$this->tablename] = $this->tablename;  // there is no alias, so use original name
+                    } // if
+                    // use '*' to indicate ALL columns
+                    $DML->sql_select = $aliasnames[$this->tablename] .'.*, ' .$DML->sql_select;
+                    // replace '*' (all columns) with a list of columns names, qualified by table/alias name
+                    $DML->sql_select = selectAllColumns($DML->sql_select, $this->getFieldSpec_original(), $aliasnames[$this->tablename]);
+                    // remove any duplicated field names from the select string
+                    $DML->sql_select = removeDuplicateFromSelect($DML->sql_select);
+                } // if
+            } // if
+            $DML->sql_from         = $this->sql_from;
+            $DML->sql_groupby      = $this->sql_groupby;
+            $DML->sql_having       = $this->sql_having;
+            $DML->sql_orderby      = $this->getOrderBy();
+            $DML->sql_orderby_seq  = $this->sql_orderby_seq;
+            if (!empty($this->sql_search)) {
+                if (empty($where)) {
+                    $where = $this->sql_search;
+                } else {
+                    $where = "($where) AND $this->sql_search";
+                } // if
+            } // if
+        } else {
+            // construct default SELECT statement
+            $DML->sql_select       = NULL;
+            $DML->sql_from         = NULL;
+            $DML->sql_groupby      = NULL;
+            $DML->sql_having       = NULL;
+            $DML->sql_orderby      = NULL;
+            $DML->sql_orderby_seq  = NULL;
+        } // if
+        $DML->setRowLocks('EX');   // lock this row (exclusive)
+
+        $DML->no_abort_on_lock_wait = $this->no_abort_on_lock_wait;
+
+        $array = $DML->getData($this->dbname_server, $this->tablename, $where);
+
+        $this->errors  = array_merge($DML->getErrors(), $this->errors);
+        $this->numrows = $DML->getNumRows();
+        $this->lock_wait_count = $DML->lock_wait_count;
+
+        return $array;
+
+    } // _dml_ReadBeforeUpdate
+
+    // ****************************************************************************
+    function _dml_updateRecord ($fieldarray, $oldarray, $where=null)
+    // update the record contained in $fieldarray.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        // use ORIGINAL, not CURRENT specifications for this database table
+        $DML->fieldspec             = $this->getFieldSpec_original();
+        $DML->primary_key           = $this->getPkeyNames();
+        $DML->unique_keys           = $this->unique_keys;
+        $DML->audit_logging         = $this->audit_logging;
+        $DML->allow_db_function     = $this->allow_db_function;
+        $DML->no_abort_on_lock_wait = $this->no_abort_on_lock_wait;
+
+        // remove any non-database fields from input array
+        foreach ($fieldarray as $field => $fieldvalue) {
+            // check that $field exists in $fieldspec array
+            if (!array_key_exists($field, $DML->fieldspec)) {
+                // it does not (like the SUBMIT button, for example), so remove it
+                unset($fieldarray[$field]);
+            } elseif (isset($DML->fieldspec[$field]['noedit']) OR isset($DML->fieldspec[$field]['nodisplay'])) {
+                // this field is not editable, so do not update it
+                //unset($fieldarray[$field]);
+            } elseif (is_array($this->noedit_array) AND array_key_exists($field, $this->noedit_array)) {
+                // this field is not editable, so do not update it
+                unset($fieldarray[$field]);
+            } // if
+        } // foreach
+
+        $array = $DML->updateRecord($this->dbname_server, $this->tablename, $fieldarray, $oldarray, $where);
+
+        $this->errors  = array_merge($this->errors, $DML->getErrors());
+        if (isset($this->messages)) {
+            if (!is_array($this->messages)) {
+                $this->messages = (array)$this->messages;
+            } // if
+        } else {
+            $this->messages = array();
+        } // if
+        if (method_exists($DML, 'getMessages')) {
+            $this->messages = array_merge($this->messages, $DML->getMessages());
+        } // if
+
+        $this->numrows = $DML->getNumRows();
+        if ($this->numrows > 0) {
+            $this->update_count   = $this->numrows;
+        } else {
+            $this->unchange_count = 1;
+        } // if
+
+        $this->query = $DML->query;  // save this in case trigger_error() is called
+
+        $this->allow_db_function = array();
+        $this->lock_wait_count = $DML->lock_wait_count;
+
+        return $array;
+
+    } // _dml_updateRecord
+
+    // ****************************************************************************
+    function _dml_updateSelection ($selection, $replace, $limit=0)
+    // update a selection of records in a single operation.
+    {
+        $DML =& $this->_getDBMSengine($this->dbname);
+
+        $DML->fieldspec         = $this->fieldspec;
+        $DML->audit_logging     = $this->audit_logging;
+        $DML->allow_db_function = $this->allow_db_function;
+
+        if (!$this->audit_logging) {
+            // no audit logging, so update everything in one operation
+            if (is_array($replace)) {
+                $string = '';
+                foreach ($replace as $field => $value) {
+                    $string .= "$field='$value',";
+                } // foreach
+                $replace = rtrim($string, ', ');
+            } // if
+            $count = $DML->updateSelection($this->dbname_server, $this->tablename, $replace, $selection);
+            $this->errors = array_merge($this->errors, $DML->getErrors());
+            if (isset($this->messages)) {
+                if (!is_array($this->messages)) {
+                    $this->messages = (array)$this->messages;
+                } // if
+            } else {
+                $this->messages = array();
+            } // if
+            if (method_exists($DML, 'getMessages')) {
+                $this->messages = array_merge($this->messages, $DML->getMessages());
+            } // if
+        } else {
+            $this->sqlSelectInit();
+            $rows_per_page       = $this->rows_per_page;    // save
+            $this->setRowsPerPage($limit);
+            // audit logging is ON, so fetch everything and update one row at a time
+            if (!is_array($replace)) {
+                $replace = where2array($replace);
+            } // if
+            $resource = $this->_dml_getData_serial($selection);
+            $this->setRowsPerPage($rows_per_page);          // restore
+            $count = 0;
+            while ($row = $this->fetchRow($resource)) {
+                $update = array_merge($row, $replace);
+                // construct primary key for original record as this may be changed in this update
+                $where  = array2where($row, $this->getPkeyNames());
+                $update = $this->_dml_updateRecord($update, $row, $where);
+                if ($this->errors) {
+                    break;
+                } // if
+                $count += $this->numrows;
+            } // while
+            $res = $this->_dml_free_result($resource);
+        } // if
+
+        $this->numrows = $count;
+
+        return $count;
+
+    } // _dml_updateSelection
+
+    // ****************************************************************************
+    function _checkBlockchainTrigger($trigger_data, $method, $fieldarray)
+    // check if this operation will trigger a Blockchain message
+    {
+        if (preg_match('/^(blockchain)$/i', $GLOBALS['mode'])) {
+            return false;  // change triggered by another blockchain node, so don't fire it again
+        } // if
+
+        if (!empty($trigger_data)) {
+            return $trigger_data;
+        } // if
+
+        $script_id = '../blockchain/blockchain_send.php';
+        if (!file_exists($script_id)) {
+            return false;  // subsystem does not exist, so exit now
+        } // if
+
+        $subsys_dir = basename(dirname($this->dirname));
+
+        if (preg_match('/^(audit|dict)$/i', $subsys_dir)) {
+            return $trigger_data;  // exclude these subsystems
+        } // if
+
+        if (empty($_SESSION['blockchain_trigger']) OR empty($_SESSION['blockchain_trigger'][$subsys_dir])) {
+            // has not been added to the cache yet, so do it now
+            $trigger = RDCsingleton::getInstance('blockchain/blockchain_trigger');
+            $where_array['subsys_dir']   = $subsys_dir;
+            //$where_array['table_id']     = $this->tablename;
+            $where = array2where($where_array);
+            $trigger->setSqlSearch("curr_or_hist='C'");  // must be current on today's date
+            $trigger->setOrderBy('trigger_id ASC');
+            $data = $trigger->getData($where);
+            $_SESSION['blockchain_trigger'][$subsys_dir] = $data;
+        } // if
+
+        $data = $_SESSION['blockchain_trigger'][$subsys_dir];  // cached data
+
+        $tablename = $this->tablename;
+        $classname = $this->getClassname();  // is different this will be an alias name
+
+        $found = false;
+        foreach ($data as $rownum => $rowdata) {
+            if (!empty($rowdata['table_id_alias']) AND $rowdata['table_id_alias'] != $classname) {
+                $ignore = true;  // trigger value is not correct
+            } elseif ($rowdata['table_id'] != $tablename) {
+                $ignore = true;  // trigger value is not correct
+            } elseif (!empty($rowdata['trigger_column'])) {
+                if (!preg_match('/^(update)/i', $method)) {
+                    $ignore = true;  // this trigger can only be fired with an 'update' operation
+                } elseif ($rowdata['trigger_value'] != $fieldarray[$rowdata['trigger_column']]) {
+                    $ignore = true;  // trigger value is not correct
+                } else {
+                    $found = true;
+                    break;
+                } // if
+            } else {
+                // there is no trigger_column, so this is always valid
+                $found = true;
+                break;
+            } // if
+        } // foreach
+
+        if (!$found) {
+            return $trigger_data;  // nothing to do
+        } // if
+
+        $pkey_array = array();
+        foreach ($this->primary_key as $fieldname) {
+            $pkey_array[$fieldname] = $fieldarray[$fieldname];
+        } // foreach
+        $pkey_string = array2where($pkey_array);
+
+        $trigger_data['trigger_id'] = $rowdata['trigger_id'];
+        $trigger_data['method']     = $method;
+        $trigger_data['pkey']       = $pkey_string;
+
+        return $trigger_data;
+
+    } // _checkBlockchainTrigger
+
+    // ****************************************************************************
+    function _fireBlockchainTrigger($trigger)
+    // send a message to the Blockchain server for distribution to other nodes
+    {
+        $script_id = '../blockchain/blockchain_send.php';
+        if (!$fp = @fopen($script_id, 'r')) {
+            // "File 'XX' does not exist"
+            $errors[] = getLanguageText('sys0057', $script_id);
+            return $errors;
+        } // if
+        fclose($fp);
+
+        $trigger_id = $trigger['trigger_id'];
+        $method     = $trigger['method'];
+        $pkey       = $trigger['pkey'];
+
+        // run this program in the background via the command line
+        if (preg_match('/^(linux|unix)/i', PHP_OS)) {
+            // this code is for linux and unix system
+            $command_line = "/usr/bin/php '$script_id' $trigger_id $method \"$pkey\" >/dev/null &";
+            $result = exec($command_line);
+
+        } else {
+            // this code is for Windoze
+            if (defined('PATH_TO_PHP_EXECUTABLE')) {
+                $php_exe = PATH_TO_PHP_EXECUTABLE;
+            } else {
+                $php_exe = 'php.exe';
+            } // if
+            $command_line = "start $php_exe $script_id $trigger_id $method \"$pkey\" ";
+            if ($resource = popen($command_line, "r")) {
+                //$message = fread($resource, 1024);
+            } // if
+            pclose($resource);
+        } // if
+
+        return true;
+
+    } // _fireBlockchainTrigger
+
+    // ****************************************************************************
+    function _examineWorkflow ($input)
+    // a task has just completed, so ...
+    // find out if this task/context starts a new workflow instance (case),
+    // or is a workitem within an existing workflow instance.
+    {
+        $this->errors = array();
+
+        if (is_integer(key($input))) {
+            // array contains multiple rows, so use last row only
+            $input = array_pop($input);
+        } // if
+
+        if (is_array($input)) {
+            // context is the primary key of the current record
+            $pkeynames  = $this->getPkeyNamesAdjusted();
+            $context    = array2where($input, $pkeynames, false, true);
+            $fieldarray = $input;
+        } else {
+            $context    = $input;
+            $fieldarray = where2array($context);
+        } // if
+
+        $wf_case_id     = $this->wf_case_id;
+        $wf_workitem_id = $this->wf_workitem_id;
+        if (!empty($this->wf_context)) {
+            // replace current context with saved workitem context
+            $context = $this->wf_context;
+        } // if
+
+        if (empty($context)) {
+            return $this->errors;
+        } // if
+
+        // interface with the workflow engine
+        $workflow = RDCsingleton::getInstance('workflow_engine');
+
+        //$res = $workflow->startTransaction();
+
+        // look to see if this task is a workitem within an existing workflow case
+        if (isset($wf_case_id) and isset($wf_workitem_id)) {
+            // yes it is, so mark it as finished
+            $workflow->wf_user_id = $this->wf_user_id;  // use this value for new transitions
+            // identify currect class as it may be used if an email is sent
+            $subsys_dir = basename(dirname($this->dirname));
+            $object_id = $subsys_dir.'/'.$this->getClassName();
+            $workflow->finishWorkItem($wf_case_id, $wf_workitem_id, $context, $fieldarray, $object_id);
+            if ($workflow->errors) {
+                $this->errors = array_merge($this->errors, $workflow->getErrors());
+                $res = $workflow->rollback();
+                return $this->errors;
+            } // if
+            //$res = $workflow->commit(false, false);
+            return;
+        } // if
+
+        // look to see if this task requires the starting of a new workflow case
+        $wf_case_id = $workflow->startWorkflowCase($GLOBALS['task_id'], $context);
+        if ($workflow->errors) {
+            $this->errors = array_merge($this->errors, $workflow->getErrors());
+            $res = $workflow->rollback();
+            return $this->errors;
+        } // if
+
+        //$res = $workflow->commit(false, false);
+
+        unset($workflow);
+
+        return $this->errors;
+
+    } // _examineWorkflow
+
+    // ****************************************************************************
+    function _examineWorkflowInstance ($where)
+    // a task has just started, so ...
+    // look to see if this task/context is a workitem within a workflow instance,
+    // and if it is then set the appropriate variables (for use in finishWorkItem())
+    {
+        if (empty($where)) {
+            return;  // no context yet, so ignore
+        } // if
+
+        $this->errors = array();
+
+        // look for a workitem that matches this task_id and context
+        $dbworkitem = RDCsingleton::getInstance('wf_workitem');
+
+        if (is_array($where)) {
+            // ensure that a selection of multiple rows is reduced to a single row
+            $multiples = splitWhereByRow($where);
+            $where = array_shift($multiples);
+        } // if
+
+        $context = addslashes(trim($where, ' ()'));
+        // use 'LIKE' as the passed context may have been trimmed
+        $workitem_where = "task_id='{$GLOBALS['task_id']}' AND workitem_status IN ('EN','IP') AND case_status='OP'";
+        $workitem_data = $dbworkitem->getData($workitem_where." AND context LIKE '{$context}%'");
+        if ($dbworkitem->errors) {
+            $this->errors = array_merge($this->errors, $dbworkitem->getErrors());
+            return;
+        } // if
+
+        if ($dbworkitem->numrows == 0 AND !empty($this->wf_context)) {
+            // not found, so try alternative context
+            $workitem_data = $dbworkitem->getData($workitem_where." AND context LIKE '{$this->wf_context}%'");
+            if ($dbworkitem->errors) {
+                $this->errors = array_merge($this->errors, $dbworkitem->getErrors());
+                return;
+            } // if
+        } // if
+
+        // if nothing found exit now
+        if ($dbworkitem->numrows == 0) {
+            unset($dbworkitem);
+            return;
+        } // if
+
+        // use only first item
+        reset($workitem_data);   // fix for version 4.4.1
+        $workitem_data = $workitem_data[key($workitem_data)];
+
+        if ($workitem_data['workitem_status'] == 'IP') {
+            // ignore next check
+        } elseif (isset($GLOBALS['batch']) AND is_True($GLOBALS['batch'])) {
+            if (!empty($this->wf_user_id)) {
+                if (preg_match('/^(null)$/i', $this->wf_user_id)) {
+                    $workitem_data['user_id'] = null;
+                } else {
+                    $workitem_data['user_id'] = $this->wf_user_id;  // use specified value
+                } // if
+                $workitem_data = $dbworkitem->updateRecord($workitem_data);
+                if ($dbworkitem->errors) {
+                    $this->errors = array_merge($this->errors, $dbworkitem->getErrors());
+                    return;
+                } // if
+            } // if
+        } else {
+            // check that workitem has been assigned to one of this user's roles
+            $role_list = explode(',', $_SESSION['role_list']);
+            //if ($workitem_data['role_id'] != $_SESSION['role_id']) {
+            if (!in_array("'{$workitem_data['role_id']}'", $role_list)) {
+                $result = $dbworkitem->rollback();
+                $workitem_data['user_id'] = null;
+                $workitem_data = $dbworkitem->updateRecord($workitem_data);
+                if ($dbworkitem->errors) {
+                    $result = $dbworkitem->rollback();
+                } else {
+                    $result = $dbworkitem->commit();
+                } // if
+                //scriptPrevious("This task has been assigned to role " .$workitem_data['role_id']);
+                $batch_errors = scriptPrevious($this->getLanguageText('sys0014', $workitem_data['role_id']));
+                return $batch_errors;
+            } // if
+
+            if (empty($workitem_data['user_id'])) {
+                // no user assigned to this workitem, so assign to this user
+                if (!empty($this->wf_user_id)) {
+                    if (preg_match('/^(null)$/i', $this->wf_user_id)) {
+                        // this is user 'NULL', so ignore it
+                    } else {
+                        $workitem_data['user_id'] = $this->wf_user_id;  // use specified value
+                    } // if
+                } else {
+                    $workitem_data['user_id'] = $_SESSION['logon_user_id'];
+                } // if
+                $workitem_data = $dbworkitem->updateRecord($workitem_data);
+                if ($dbworkitem->errors) {
+                    $this->errors = array_merge($this->errors, $dbworkitem->getErrors());
+                    return;
+                } // if
+            } elseif (!empty($this->wf_user_id)) {
+                if (preg_match('/^(null)$/i', $this->wf_user_id)) {
+                    $workitem_data['user_id'] = null;
+                } else {
+                    $workitem_data['user_id'] = $this->wf_user_id;  // use specified value
+                } // if
+                $workitem_data = $dbworkitem->updateRecord($workitem_data);
+                if ($dbworkitem->errors) {
+                    $this->errors = array_merge($this->errors, $dbworkitem->getErrors());
+                    return;
+                } // if
+            } else {
+                // check that workitem has been assigned to this user
+                if ($workitem_data['user_id'] != $_SESSION['logon_user_id']) {
+                    //scriptPrevious("This task has been assigned to user " .$workitem_data['user_id']);
+                    $batch_errors = scriptPrevious($this->getLanguageText('sys0015', $workitem_data['user_id']));
+                    return $batch_errors;
+                } // if
+            } // if
+        } // if
+
+        // workitem exists, so store details
+        $this->wf_case_id     = $workitem_data['case_id'];
+        $this->wf_workitem_id = $workitem_data['workitem_id'];
+        $this->wf_user_id     = $workitem_data['user_id'];
+
+        if ($workitem_data['context'] != stripslashes($context)) {
+            // current primary key does not match workitem context, so ...
+            // workitem context must be saved and carried forward
+            $this->wf_context = $workitem_data['context'];
+        } else {
+            $this->wf_context = null;
+        } // if
+
+        unset($dbworkitem);
+
+        return;
+
+    } // _examineWorkflowInstance
+
+    // ****************************************************************************
+    function _extract_custom_fields ($rowdata)
+    // look for $rowdata['custom_fields']['field'] = array('name' => 'x', 'value' => 'y')
+    // and extract entries to $rowdata['x'] => 'y'
+    // this will make it easier to process any extra fields in subsequent code.
+    {
+        if (isset($rowdata['custom_fields']) AND isset($rowdata['custom_fields']['field'])) {
+            if (is_string(key($rowdata['custom_fields']['field']))) {
+                // only one entry, so set it to undex zero
+                $array[] = $rowdata['custom_fields']['field'];
+                $rowdata['custom_fields']['field'] = $array;
+            } // if
+            foreach ($rowdata['custom_fields']['field'] as $index => $data) {
+                if (is_array($data)) {
+                    if (array_key_exists('name', $data) AND array_key_exists('value', $data)) {
+                        $rowdata[$data['name']] = $data['value'];
+                    } // if
+                } // if
+            } // foreach
+        } // if
+
+        unset($rowdata['custom_fields']);  // values have been extracted, so this is now redundant
+
+        return $rowdata;
+
+    } // _extract_custom_fields
+
+    // ****************************************************************************
+    function _getCustomProcessingObject ()
+    // look for an optional file containing code for custom processing.
+    // this exists in the 'custom-processing' directory with a 'cp_' prefix.
+    {
+        if (empty($GLOBALS['project_code'])) {
+            return;  // identity of subfolder not defined, so exit
+        } // if
+
+        //if (is_object($this->custom_processing_object)) {
+        //    return;  // already loaded, so don't load it again
+        //} // if
+
+        $dirname = dirname($this->dirname) ."/classes/custom-processing/{$GLOBALS['project_code']}/";
+        $fname = $dirname .'cp_' .get_class($this) .'.class.inc';
+        if (file_exists($fname)) {
+            // ** this code causes a hang in PHP 4 **
+            //$class_name = "custom-processing/{$GLOBALS['project_code']}/cp_" .get_class($this);
+            //$this->custom_processing_object = RDCsingleton::getInstance($class_name);
+            // include reference to calling object in the custom object
+            //$this->custom_processing_object->calling_object =& $this;
+            // **
+
+            $class_name = 'cp_' .get_class($this);
+            if (!class_exists($class_name)) {
+                require_once($fname);
+            } // if
+            if (class_exists($class_name)) {
+                $cpo = new $class_name;
+                $cpo->is_custom_object   = true;
+                // make object variables available in custom object
+                //$cpo->dirname            =& $this->dirname;
+                $cpo->dirname            = $dirname;
+                $cpo->dirname_dict       =& $this->dirname;
+                $cpo->dbname             =& $this->dbname;
+                $cpo->dbname_server      =& $this->dbname_server;
+                $cpo->tablename          =& $this->tablename;
+                $cpo->fieldspec          =& $this->fieldspec;
+                $cpo->fieldarray         =& $this->fieldarray;
+
+                $cpo->allow_buttons_all_zones   =& $this->allow_buttons_all_zones;
+                $cpo->allow_empty_where         =& $this->allow_empty_where;
+                $cpo->allow_multiple            =& $this->allow_multiple;
+                $cpo->alt_language_table        =& $this->alt_language_table;
+                $cpo->alt_language_cols         =& $this->alt_language_cols;
+                $cpo->audit_logging             =& $this->audit_logging;
+                $cpo->child_relations           =& $this->child_relations;
+                $cpo->custom_replaces_standard  =& $this->custom_replaces_standard;
+                $cpo->default_orderby           =& $this->default_orderby;
+                $cpo->errors                    =& $this->errors;
+                $cpo->expanded                  =& $this->expanded;
+                $cpo->initial_values            =& $this->initial_values;
+                $cpo->initiated_from_controller =& $this->initiated_from_controller;
+                $cpo->lookup_data               =& $this->lookup_data;
+                $cpo->messages                  =& $this->messages;
+                $cpo->nameof_start_date         =& $this->nameof_start_date;
+                $cpo->nameof_end_date           =& $this->nameof_end_date;
+                $cpo->no_display_count          =& $this->no_display_count;
+                $cpo->numrows                   =& $this->numrows;
+                $cpo->pageno                    =& $this->pageno;
+                $cpo->lastpage                  =& $this->lastpage;
+                $cpo->parent_relations          =& $this->parent_relations;
+                $cpo->primary_key               =& $this->primary_key;
+                $cpo->query                     =& $this->query;
+                $cpo->reuse_previous_select     =& $this->reuse_previous_select;
+                $cpo->rows_per_page             =& $this->rows_per_page;
+                $cpo->row_offset                =& $this->row_offset;
+                $cpo->skip_getdata              =& $this->skip_getdata;
+                $cpo->sql_from                  =& $this->sql_from;
+                $cpo->sql_groupby               =& $this->sql_groupby;
+                $cpo->sql_groupby_orig          =& $this->sql_groupby_orig;
+                $cpo->sql_having                =& $this->sql_having;
+                $cpo->sql_no_foreign_db         =& $this->sql_no_foreign_db;
+                $cpo->sql_orderby               =& $this->sql_orderby;
+                $cpo->sql_orderby_seq           =& $this->sql_orderby_seq;
+                $cpo->sql_orderby_table         =& $this->sql_orderby_table;
+                $cpo->sql_search                =& $this->sql_search;
+                $cpo->sql_search_orig           =& $this->sql_search_orig;
+                $cpo->sql_search_table          =& $this->sql_search_table;
+                $cpo->sql_select                =& $this->sql_select;
+                $cpo->sql_where                 =& $this->sql_where;
+                $cpo->sql_union                 =& $this->sql_union;
+                $cpo->unbuffered_query          =& $this->unbuffered_query;
+                $cpo->unique_keys               =& $this->unique_keys;
+                $cpo->wf_case_id                =& $this->wf_case_id;
+                $cpo->wf_workitem_id            =& $this->wf_workitem_id;
+                $cpo->wf_context                =& $this->wf_context;
+                $cpo->wf_user_id                =& $this->wf_user_id;
+                $cpo->xsl_params                =& $this->xsl_params;
+                $cpo->zone                      =& $this->zone;
+
+                // these are used in std.filepicker1/fileupload1/filedownload1.inc
+                $cpo->cache_dir                 =& $this->cache_dir;
+                $cpo->download_filename         =& $this->download_filename;
+                $cpo->download_mode             =& $this->download_mode;
+                $cpo->image_height              =& $this->image_height;
+                $cpo->image_width               =& $this->image_width;
+                $cpo->picker_subdir             =& $this->picker_subdir;
+                $cpo->picker_filetypes          =& $this->picker_filetypes;
+                $cpo->resize_array              =& $this->resize_array;
+                $cpo->return_uploaded_file      =& $this->return_uploaded_file;
+                $cpo->upload_blacklist          =& $this->upload_blacklist;
+                $cpo->upload_filetypes          =& $this->upload_filetypes;
+                $cpo->upload_maxfilesize        =& $this->upload_maxfilesize;
+                $cpo->upload_subdir             =& $this->upload_subdir;
+                $cpo->insert_count              =& $this->insert_count;
+                $cpo->update_count              =& $this->update_count;
+                $cpo->delete_count              =& $this->delete_count;
+                $cpo->unchange_count            =& $this->unchange_count;
+
+                $cpo->CTE_in_use                =& $this->CTE_in_use;
+                $cpo->sql_CTE_name              =& $this->sql_CTE_name;
+                $cpo->sql_CTE_select            =& $this->sql_CTE_select;
+                $cpo->sql_CTE_anchor            =& $this->sql_CTE_anchor;
+                $cpo->sql_CTE_recursive         =& $this->sql_CTE_recursive;
+
+                // include reference to calling object in the custom object
+                $cpo->calling_object            =& $this;
+
+                $this->custom_processing_object =& $cpo;
+            } // if
+        } // if
+
+        return;
+
+    } // _getCustomProcessingObject
+
+    // ****************************************************************************
+    function &_getDBMSengine ($dbname=null, $unbuffered_query=false)
+    // obtain the object that deals with the database engine for this table.
+    {
+        $engine = null;
+        // check if database name has been changed in the config file
+        list($dbname2, $dbprefix, $dbms_engine) = findDBConfig($dbname);
+        $this->dbname_server = $dbprefix.$dbname2;
+        $this->dbprefix      = $dbprefix;
+        $args    = array('dbname' => $this->dbname_server);
+
+        if (!isset($GLOBALS['servers'])) {
+            // single server option
+            if (isset($GLOBALS['dbms'])) {
+                $engine             =& $GLOBALS['dbms'];
+            } // if
+            if (isset($GLOBALS['dbhost'])) {
+                $args['dbhost']     =& $GLOBALS['dbhost'];
+            } // if
+            if (isset($GLOBALS['dbusername'])) {
+                $args['dbusername'] =& $GLOBALS['dbusername'];
+            } // if
+            if (isset($GLOBALS['dbuserpass'])) {
+                $args['dbuserpass'] =& $GLOBALS['dbuserpass'];
+            } // if
+            if (isset($GLOBALS['dbport'])) {
+                $args['dbport']     =& $GLOBALS['dbport'];
+            } // if
+            if (isset($GLOBALS['dbsocket'])) {
+                $args['dbsocket']   =& $GLOBALS['dbsocket'];
+            } // if
+            if (isset($GLOBALS['ssl_key'])) {
+                $args['ssl_key']    =& $GLOBALS['ssl_key'];
+            } // if
+            if (isset($GLOBALS['ssl_cert'])) {
+                $args['ssl_cert']   =& $GLOBALS['ssl_cert'];
+            } // if
+            if (isset($GLOBALS['ssl_ca'])) {
+                $args['ssl_ca']     =& $GLOBALS['ssl_ca'];
+            } // if
+            if (isset($GLOBALS['ssl_capath'])) {
+                $args['ssl_capath'] =& $GLOBALS['ssl_capath'];
+            } // if
+            if (isset($GLOBALS['ssl_cipher'])) {
+                $args['ssl_cipher'] =& $GLOBALS['ssl_cipher'];
+            } // if
+            // these are options for non-MySQL databases
+            if (isset($GLOBALS['PGSQL_dbname'])) {
+                $args['PGSQL_dbname'] =& $GLOBALS['PGSQL_dbname'];
+            } // if
+            if (isset($GLOBALS['SQLSRV_schema'])) {
+                $args['SQLSRV_schema'] =& $GLOBALS['SQLSRV_schema'];
+            } // if
+            if (isset($GLOBALS['serverName'])) {
+                $args['serverName'] =& $GLOBALS['serverName'];
+            } // if
+            if (isset($GLOBALS['connectionInfo'])) {
+                $args['connectionInfo'] =& $GLOBALS['connectionInfo'];
+            } // if
+        } else {
+            // multi-server option
+            // find out which server deals with this dbname
+            foreach ($GLOBALS['servers'] as $servernum => $server) {
+                if (empty($server['dbnames'])) {
+                    // DBNAMES entry missing
+                    trigger_error($this->getLanguageText('sys0170', 'DBNAMES'), E_USER_ERROR);
+                } else {
+                    $dbname_array = explode(',', $server['dbnames']);
+                    $dbname_array = array_map('trim', $dbname_array);
+                } // if
+                if ($server['dbnames'] == '*' OR in_array($dbname, $dbname_array)) {
+                    if (!isset($server['dbengine'])) {
+                        trigger_error($this->getLanguageText('sys0170', 'DBENGINE'), E_USER_ERROR);
+                    } else {
+                        $engine = $server['dbengine'];
+                    } // if
+                    if (preg_match('/^(sqlsrv)$/i', $server['dbengine'])) {
+                        if (isset($server['serverName'])) {
+                            $args['serverName'] =& $server['serverName'];
+                        } else {
+                            trigger_error($this->getLanguageText('sys0170', 'SERVERNAME'), E_USER_ERROR);
+                        } // if
+                        if (isset($server['SQLSRV_schema'])) {
+                            $args['SQLSRV_schema'] =& $server['SQLSRV_schema'];
+                        } else {
+                            trigger_error($this->getLanguageText('sys0170', 'SQLSRV_SCHEMA'), E_USER_ERROR);
+                        } // if
+                        if (isset($server['connectionInfo'])) {
+                            $args['connectionInfo'] =& $server['connectionInfo'];
+                        } else {
+                            trigger_error($this->getLanguageText('sys0170', 'CONNECTIONINFO'), E_USER_ERROR);
+                        } // if
+
+                    } else {
+                        if (!isset($server['dbhost'])) {
+                            trigger_error($this->getLanguageText('sys0170', 'DBHOST'), E_USER_ERROR);
+                        } else {
+                            $args['dbhost'] = $server['dbhost'];
+                        } // if
+                        if (!isset($server['dbusername'])) {
+                            trigger_error($this->getLanguageText('sys0170', 'DBUSERNAME'), E_USER_ERROR);
+                        } else {
+                            $args['dbusername'] = $server['dbusername'];
+                        } // if
+                        if (!isset($server['dbuserpass'])) {
+                            trigger_error($this->getLanguageText('sys0170', 'DBUSERPASS'), E_USER_ERROR);
+                        } else {
+                            $args['dbuserpass'] = $server['dbuserpass'];
+                        } // if
+                    } // if
+                    if (!empty($server['dbport'])) {
+                        $args['dbport'] = $server['dbport'];
+                    } // if
+                    if (!empty($server['dbsocket'])) {
+                        $args['dbsocket'] = $server['dbsocket'];
+                    } // if
+                    if (!empty($server['ssl_key'])) {
+                        $args['ssl_key'] = $server['ssl_key'];
+                    } // if
+                    if (!empty($server['ssl_cert'])) {
+                        $args['ssl_cert'] = $server['ssl_cert'];
+                    } // if
+                    if (!empty($server['ssl_ca'])) {
+                        $args['ssl_ca'] = $server['ssl_ca'];
+                    } // if
+                    if (!empty($server['ssl_capath'])) {
+                        $args['ssl_capath'] = $server['ssl_capath'];
+                    } // if
+                    if (!empty($server['ssl_cipher'])) {
+                        $args['ssl_cipher'] = $server['ssl_cipher'];
+                    } // if
+                    if (isset($server['PGSQL_dbname'])) {
+                        $args['PGSQL_dbname'] =& $server['PGSQL_dbname'];
+                    } // if
+                    break; // so stop here
+                } // if
+            } // foreach
+            if (empty($engine)) {
+                // "entry missing for database 'X'"
+                trigger_error($this->getLanguageText('sys0171', $dbname), E_USER_ERROR);
+            } // if
+        } // if
+
+        if (empty($engine)) {
+            trigger_error("No value has been supplied for DBMS engine", E_USER_ERROR);
+        } // if
+
+        if (!class_exists($engine)) {
+            // load class definition for this database engine
+            if ($engine == 'mysql') {
+                if (extension_loaded('mysqli')) {
+                    // use 'improved' mysql functions
+                    require_once "dml.mysqli.class.inc";
+                } else {
+                    // use standard mysql functions
+                    require_once "dml.mysql.class.inc";
+                } // if
+            } elseif ($engine == 'oracle') {
+                if (version_compare(phpversion(), '5.0.0', '<')) {
+                    // use old api's
+                    require_once "dml.oracle.php4.class.inc";
+                } else {
+                    // use new api's
+                    require_once "dml.oracle.php5.class.inc";
+                } // if
+            } else {
+                require_once "dml.$engine.class.inc";
+            } // if
+        } // if
+
+        if (!empty($this->serial_table)) {
+            // may need to create a separate connection for this table for serial reads
+            if ($engine == 'sqlsrv') {
+                $servernum = $this->serial_table;
+            } // if
+        } // if
+
+        if (isset($servernum)) {
+            $DML = RDCsingleton::getInstance('server__' .$servernum .'__' .$engine, $args, true, $unbuffered_query);
+        } else {
+            $DML = RDCsingleton::getInstance($engine, $args, true, $unbuffered_query);
+        } // if
+
+        $DML->dbname = $args['dbname'];  // save selected database name in this server instance
+
+        return $DML;
+
+    } // _getDBMSengine
+
+    // ****************************************************************************
+    function _getInitialValues ($task_id=null)
+    // look for any initial values on the MNU_INITIAL_VALUE_USER table.
+    // if none are found take a look on the MNU_INITIAL_VALUE_ROLE table.
+    {
+        $fieldarray = array();
+
+        if (preg_match('/^(workflow|audit)$/i', $this->dbname)) {
+            // ignore this code for those databases
+            return $fieldarray;
+        } // if
+
+        if (isset($_SESSION['logon_user_id'])) {
+            $user_id   = $_SESSION['logon_user_id'];
+        } else {
+            $user_id   = 'UNKNOWN';
+        } // if
+        $role_id   = $_SESSION['role_id'];
+        $role_list =& $_SESSION['role_list'];
+        if (empty($role_list)) {
+            $role_list = "'$role_id'";
+        } // if
+        if (empty($task_id)) {
+            if (!empty($GLOBALS['initial_values_task_id'])) {
+                $task_id = $GLOBALS['initial_values_task_id'];
+            } else {
+                $task_id = $GLOBALS['task_id'];
+            } // if
+        } // if
+
+        // look for ROLE data
+        $dbobject = RDCsingleton::getInstance('mnu_initial_value_role');
+        $dbobject->sql_select = 'field_id, initial_value, is_noedit';
+        //$role_data = $dbobject->getData_raw("role_id='$role_id' AND task_id='$task_id'");
+        $role_data = $dbobject->getData_raw("role_id IN ($role_list) AND task_id='$task_id'");
+        unset($dbobject);
+        foreach ($role_data as $rownum => $rowdata) {
+            // change into an array which is keyed by field_id
+            $field_id = strtolower($rowdata['field_id']);
+            $init_data[$field_id]['initial_value'] = $rowdata['initial_value'];
+            $init_data[$field_id]['is_noedit']     = $rowdata['is_noedit'];
+        } // foreach
+
+        // overwrite with USER data
+        $dbobject = RDCsingleton::getInstance('mnu_initial_value_user');
+        $dbobject->sql_select = 'field_id, initial_value, is_noedit';
+        $user_data = $dbobject->getData_raw("user_id='$user_id' AND task_id='$task_id'");
+        unset($dbobject);
+        foreach ($user_data as $rownum => $rowdata) {
+            // change into an array which is keyed by field_id
+            $field_id = strtolower($rowdata['field_id']);
+            $init_data[$field_id]['initial_value'] = $rowdata['initial_value'];
+            $init_data[$field_id]['is_noedit']     = $rowdata['is_noedit'];
+        } // foreach
+
+        if (!empty($init_data)) {
+            // copy any values into this task's data area
+            foreach ($init_data as $field_id => $field_data) {
+                $fieldarray[$field_id] = $field_data['initial_value'];
+                if (is_True($field_data['is_noedit'])) {
+                    if (array_key_exists($field_id, $this->fieldspec)) {
+                        // this field cannot be modified by the user
+                        $this->fieldspec[$field_id]['noedit'] = 'y';
+                    } // if
+                } // if
+            } // foreach
+        } // if
+
+        return $fieldarray;
+
+    } // _getInitialValues
+
+    // ****************************************************************************
+    function _getInitialWhere ($where)
+    // merge $this->initial_values with $where.
+    {
+        $fieldarray = where2array($where, false, false);
+
+        if (!empty($this->initial_values)) {
+            foreach ($this->initial_values as $key => $value) {
+                if (empty($fieldarray[$key])) {
+                    // current value is empty, so overwrite with initial value
+                    $fieldarray[$key] = $value;
+                } // if
+            } // foreach
+        } // if
+
+        $where = array2where($fieldarray);
+
+        return $where;
+
+    } // _getInitialWhere
+
+    // ****************************************************************************
+    function _processInstruction ($fieldarray)
+    // process instructions contained within $this->instruction
+    // (as returned by a child script)
+    {
+        // look for a 'select' instruction
+        if (array_key_exists('select', $this->instruction)) {
+            // extract the key/value pair which has been selected
+            foreach ($this->instruction['select'] as $selectkey => $selectvalue) {
+                // find the row with the same key
+                foreach ($fieldarray as $row => $rowdata) {
+                    if ($rowdata[$selectkey] == $selectvalue) {
+                        // mark this row as selected
+                        $fieldarray[$row]['selected'] = 'T';
+                    } // if
+                } // foreach
+            } // foreach
+            // instruction has been processed, so remove it
+            unset($this->instruction['select']);
+        } // if
+
+        // if there are no more instructions left then clear this array
+        if (empty($this->instruction)) {
+            unset($this->instruction);
+        } // if
+
+        return $fieldarray;
+
+    } // _processInstruction
+
+    // ****************************************************************************
+    function _post_getData ($data_raw, $where)
+    // perform any custom post-retrieve processing
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, '_cm_post_getData')) {
+                $data_raw = $this->custom_processing_object->_cm_post_getData($data_raw, $where);
+            } // if
+        } // if
+        if ($this->custom_replaces_standard) {
+            $this->custom_replaces_standard = false;
+        } else {
+            $data_raw = $this->_cm_post_getData($data_raw, $where);
+        } // if
+
+        return $data_raw;
+
+    } // _post_getData
+
+    // ****************************************************************************
+    function _qualify_dbname ($target_db, $this_db)
+    // find out if the target database needs to be qualified - if it has been switched
+    // (refer to _switch_databases() method) to the source database then it does not.
+    {
+        // check if the name has been prefixed or switched in the config file.
+//        list($target_db_new, $target_dbprefix, $target_dbms_engine) = findDBConfig($target_db);
+//        $target_db_new = $target_dbprefix.$target_db_new;
+//
+//        list($this_db_new, $this_dbprefix, $this_dbms_engine) = findDBConfig($this_db);
+//        $this_db_new = $this_dbprefix.$this_db_new;
+//
+//        if ($target_db_new == $this_db_new) {
+//            // target dbname is the same, so does not need to be specified
+//            $output = '';
+//        } else {
+//            // target dbname needs to be specified and enclosed in double quotes
+//            $output = '"'.$target_db_new.'".';
+//        } // if
+
+        $output = findDBName($target_db, $this_db);
+
+        return $output;
+
+    } // _qualify_dbname
+
+    // ****************************************************************************
+    function _sqlAssembleWhere ($where, $where_array)
+    // assemble the $where clause from its component parts.
+    // ($where = string, $where_array = array)
+    {
+        // identify database engine
+        list($dbname2, $dbprefix, $dbms_engine) = findDBConfig($this->dbname);
+
+        if (is_True($this->is_link_table)) {
+            // this is for an outer-link-inner relationship
+            $where = $this->_sqlAssembleWhereLink($where, $where_array);
+        } else {
+            if (isset($this->fieldspec['rdcaccount_id'])) {
+                if (!empty($where_array['rdcaccount_id'])) {
+                    // value has already been supplied, so continue
+                } elseif (preg_match('/^(mnu_user|mnu_account)$/i', $this->tablename)) {
+                    // do not use account restriction when reading these tables
+                } else {
+                    if (isset($_SESSION['rdcaccount_id'])) {
+                        $account_id = $_SESSION['rdcaccount_id'];
+                    } else {
+                        $account_id = null;
+                    } // if
+                    if (empty($account_id)) {
+                        $account_id_string = null;  // read all accounts
+                    } elseif ($account_id == 1) {
+                        // read only the shared account
+                        $account_id_string = "$this->tablename.rdcaccount_id='1'";
+                    } else {
+                        // read the user's account and the shared account
+                        $account_id_string = "$this->tablename.rdcaccount_id IN ('1', '$account_id')";
+                    } // if
+                    if (!empty($account_id_string)) {
+                        if (empty($this->sql_search)) {
+                            $this->sql_search = $account_id_string;
+                        } else {
+                            if (substr_count($this->sql_search, $account_id_string) == 0) {
+                                $this->sql_search .= " AND $account_id_string";
+                            } // if
+                        } // if
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (!empty($where_array['curr_or_hist'])) {
+            // move to $this->sql_search otherwise it gets lost
+            $search_array = where2array($this->sql_search, false, false);
+            $search_array['curr_or_hist'] = $where_array['curr_or_hist'];
+            $this->sql_search = array2where($search_array);
+        } // if
+
+        if ($this->checkPrimaryKey OR empty($this->sql_from) OR ($this->sql_from == $this->tablename)) {
+            // check that 'where' clause does not contain any fields that
+            // are not in this table, otherwise it will cause an error
+            $extra = array();
+            if (is_array($this->no_filter_where) AND !empty($this->no_filter_where)) {
+                $extra = $this->no_filter_where;
+            } // if
+            if (is_object($this->custom_processing_object)) {
+                if (method_exists($this->custom_processing_object, '_cm_filterWhere')) {
+                    $extra = $this->custom_processing_object->_cm_filterWhere($extra);
+                } // if
+            } // if
+            if ($this->custom_replaces_standard) {
+                $this->custom_replaces_standard = false;
+            } else {
+                $extra = $this->_cm_filterWhere($extra);
+            } // if
+            $where = filterWhere($where, $this->fieldspec, $this->tablename, $extra);
+        } // if
+
+        if (empty($this->sql_from)) {
+            // obtain fields from foreign tables via a JOIN, if necessary
+            $this->sql_from = $this->_sqlForeignJoin($this->sql_select, $this->sql_from, $this->parent_relations);
+        } // if
+
+        if (preg_match('/(sqlsrv)/i', $dbms_engine)) {
+            if (preg_match("/^(\*|{$this->tablename}\.\*)/", $this->sql_select, $regs)) {
+                // replace '*' (all columns) with a list of columns names
+                $this->sql_select = selectAllColumns($this->sql_select, $this->getFieldSpec_original(), $this->tablename);
+            } // if
+        } // if
+
+        // remove any duplicated field names from the select string
+        $this->sql_select = removeDuplicateFromSelect($this->sql_select, $this->drop_from_sql_select);
+        $this->drop_from_sql_select = array();
+
+        if (!empty($this->sql_search)) {
+            // turn 'current/historic/future' into a range of dates
+            $this->sql_search = $this->currentOrHistoric($this->sql_search, $this->nameof_start_date, $this->nameof_end_date);
+            // check that 'search' clause does not contain any fields that
+            // are not in this table, otherwise it will cause an error
+            if (empty($this->sql_from) OR $this->sql_from == $this->tablename) {
+                $extra = array();
+                if (is_object($this->custom_processing_object)) {
+                    if (method_exists($this->custom_processing_object, '_cm_filterWhere')) {
+                        $extra = $this->custom_processing_object->_cm_filterWhere($extra);
+                    } // if
+                } // if
+                $extra = $this->_cm_filterWhere($extra);
+                $this->sql_search = filterWhere($this->sql_search, $this->fieldspec, $this->tablename, $extra);
+            } // if
+            if (!empty($this->sql_search) AND !empty($where)) {
+                // remove anything in $this->sql_search which is duplicated in $where
+                $this->sql_search = filterWhere1Where2($where, $this->sql_search, $this->tablename);
+            } // if
+        } // if
+
+        // extract entries from $sql_select which are in format 'expression AS alias'
+        $alias_array = extractAliasNames($this->sql_select);
+        // anything in WHERE which has an alias name will be moved to HAVING
+        if (preg_match('/^\(.+\)$/', $this->sql_having)) {
+            // begins with '(' and ends with ')' so do not break it up into individual columns
+            $having_array[] = $this->sql_having;
+        } else {
+            $having_array = where2array($this->sql_having, false, false);
+        } // if
+
+        if (empty($this->sql_from)) {
+            $this->sql_from = $this->tablename;
+        } // if
+
+        //if (!empty($where)) {
+        //    $where = $this->currentOrHistoric($where, $this->nameof_start_date, $this->nameof_end_date);
+        //} // if
+
+        // qualify each column name to avoid possible conflicts with other tables
+        $where = qualifyWhere($where, $this->tablename, $this->fieldspec, $this->sql_from, null, $alias_array, $having_array);
+        if (!empty($this->sql_where)) {
+            if (preg_match('/^(AND |OR )/i', $this->sql_where)) {
+                // begins with 'AND ' or 'OR ', so do not filter or qualify the contents
+                $where .= ' '.$this->sql_where;
+            } else {
+                // temporarily remove anything in $this->sql_where which is duplicated in $where
+                $sql_where = qualifyWhere($this->sql_where, $this->tablename, $this->fieldspec, $this->sql_from, null, $alias_array, $having_array);
+                $sql_where = filterWhere1Where2($where, $sql_where, $this->tablename);
+                if (!empty($sql_where)) {
+                    // append optional 'sql_where' criteria to $where
+                    if (!empty($where)) {
+                        $where = mergeWhere($where, $sql_where);
+                    } else {
+                        $where = $sql_where;
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (!empty($this->sql_search)) {
+            $search_array = where2array($this->sql_search, false, false);
+            if (!empty($this->link_item)) {
+                if (isset($search_array['selected'])) {
+                    // replace 'selected' with correct column name, testing for T/Y and F/N
+                    $search_array['selected'] = stripOperators($search_array['selected']);
+                    if (is_True($search_array['selected'])) {
+                        $search_array[$this->link_item] = 'IS NOT NULL';
+                    } else {
+                        $search_array[$this->link_item] = 'IS NULL';
+                    } // if
+                    // ensure that 'selected' column is not specified in search criteria
+                    unset($search_array['selected']);
+                    $this->sql_search = array2where($search_array);
+                } // if
+            } // if
+
+            if (!empty($this->sql_search)) {
+                // qualify each column name to avoid conflict with other tables
+                $this->sql_search = qualifyWhere($this->sql_search, $this->tablename, $this->fieldspec, $this->sql_from, $this->sql_search_table, $alias_array, $having_array);
+                // merge $where with optional search criteria
+                if (strlen(trim($this->sql_search)) > 0) {
+                    if (empty($where)) {
+                        $where = $this->sql_search;
+                    } else {
+                        $where = "($where) AND $this->sql_search";
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        // array may have been modified, so convert back into a string
+        $this->sql_having = array2where($having_array);
+
+        if (!empty($this->sql_from)) {
+            // qualify $default_orderby using one of two possible table names
+            if (isset($this->sql_orderby_table)) {
+                $orderby_table = $this->sql_orderby_table;
+            } else {
+                $orderby_table = $this->tablename;
+            } // if
+            if ($orderby_table != $this->tablename) {
+                if (file_exists("classes/$orderby_table.class.inc")) {
+                    //require_once "classes/$orderby_table.class.inc";
+                    //$dbobject  = new $orderby_table;
+                    $dbobject = RDCsingleton::getInstance($orderby_table);
+                    $fieldspec = $dbobject->fieldspec;
+                    unset($dbobject);
+                } else {
+                    // look for 'original AS alias' in sql_from string
+                    $alias_tablename = getTableAlias1($orderby_table, $this->sql_from);
+                    if ($alias_tablename) {
+                        //require_once "classes/$alias_tablename.class.inc";
+                        //$dbobject  = new $alias_tablename;
+                        $dbobject = RDCsingleton::getInstance($alias_tablename);
+                        $fieldspec = $dbobject->fieldspec;
+                        unset($dbobject);
+                    } else {
+                        $fieldspec = array();
+                    } // if
+                } // if
+            } else {
+                $fieldspec = $this->fieldspec;
+            } // if
+            if (empty($this->sql_orderby)) {
+                $this->sql_orderby = $this->default_orderby_task;
+            } // if
+            if (empty($this->sql_orderby)) {
+                $this->sql_orderby = $this->default_orderby;
+            } // if
+            if (!empty($this->sql_orderby)) {
+                if (is_True($this->is_link_table)) {
+                    $this->sql_orderby = requalifyOrderby($this->sql_orderby, $this->sql_select, $this->tablename, $this->inner_table, $this->parent_relations);
+                } else {
+                    $this->sql_orderby = qualifyOrderby($this->sql_orderby, $orderby_table, $fieldspec, $this->sql_select, $this->sql_from);
+                } // if
+            } // if
+        } // if
+
+        return $where;
+
+    } // _sqlAssembleWhere
+
+    // ****************************************************************************
+    function _sqlAssembleWhereLink ($where, $where_array)
+    // in a many-link-many relationship this will assemble the SQL commands for
+    // the middle (link) table.
+    {
+        if (isset($this->fieldspec['rdcaccount_id'])) {
+            if (empty($where_array['rdcaccount_id'])) {
+                // value has already been supplied, so continue
+            } else {
+                $account_id = $_SESSION['rdcaccount_id'];
+                if (empty($account_id)) {
+                    $account_id_string = null;  // read all accounts
+                } elseif ($account_id == 1) {
+                    // read only the shared account
+                    $account_id_string = "$this->tablename.rdcaccount_id='1'";
+                } else {
+                    // read the user's account and the shared account
+                    $account_id_string = "$this->tablename.rdcaccount_id IN ('1', '$account_id')";
+                } // if
+                if (!empty($account_id_string)) {
+                    if (empty($this->sql_search)) {
+                        $this->sql_search = $account_id_string;
+                    } else {
+                        if (substr_count($this->sql_search, $account_id_string) == 0) {
+                            $this->sql_search .= " AND $account_id_string";
+                        } // if
+                    } // if
+                } // if
+            } // if
+        } // if
+
+        if (isset($this->link_item)) {
+            // this has already been processed, so don't do it again
+            return $where;
+        } // if
+
+        reset($where_array);   // fix for version 4.4.1
+        if (!is_string(key($where_array))) {
+            $where_array = indexed2assoc($where_array);
+        } // if
+
+        // step through $parent_relations until the OUTER entity is found
+        $outer_dbname = '';
+        foreach ($this->parent_relations as $reldata) {
+            if ($reldata['parent'] == $this->outer_table) {
+                $outer_table     = $reldata['parent'];
+                $outer_alias     = '';
+                if (!empty($reldata['dbname'])) {
+                    $outer_dbname = findDBName ($reldata['dbname'], $this->dbname);
+                } // if
+                break;
+            } elseif (isset($reldata['alias']) and $reldata['alias'] == $this->outer_table) {
+                $outer_table     = $reldata['parent'];
+                $outer_alias     = $reldata['alias'];
+                if (!empty($reldata['dbname'])) {
+                    $outer_dbname = findDBName ($reldata['dbname'], $this->dbname);
+                } // if
+                break;
+            } // if
+        } // foreach
+
+        // identify felds which join the OUTER table to the LINK table
+        foreach ($reldata['fields'] as $fldchild => $fldparent) {
+            $outer_key[]        = $outer_table .'.' .$fldparent;
+            $ix = count($outer_key) -1;
+            if ($fldchild == $fldparent) {
+                $outer_key_as[] = $outer_key[$ix];
+            } else {
+                $outer_key_as[] = $outer_key[$ix] .' AS ' .$fldchild;
+            } // if
+            $outer_link[]   = $outer_key[$ix] .'=' .$this->tablename .'.' .$fldchild;
+        } // foreach
+
+        if (!isset($this->inner_table)) {
+            // if OUTER table is defined, then INNER must be as well
+            trigger_error($this->getLanguageText('sys0011'), E_USER_ERROR); // 'Definition of INNER_TABLE is missing'
+        } // if
+
+        if (empty($this->sql_search_table)) {
+            $this->sql_search_table = $this->inner_table;
+        } // if
+        $this->sql_orderby_table    = $this->inner_table;
+
+        // step through $parent_relations until the INNER entity is found
+        $inner_dbname = '';
+        foreach ($this->parent_relations as $reldata) {
+            if ($reldata['parent'] == $this->inner_table) {
+                $inner_table     = $reldata['parent'];
+                $inner_alias     = '';
+                if (!empty($reldata['dbname'])) {
+                    $inner_dbname = findDBName ($reldata['dbname'], $this->dbname);
+                } // if
+                break;
+            } elseif (isset($reldata['alias']) and $reldata['alias'] == $this->inner_table) {
+                $inner_table     = $reldata['parent'];
+                $inner_alias     = $reldata['alias'];
+                if (!empty($reldata['dbname'])) {
+                    $inner_dbname = findDBName ($reldata['dbname'], $this->dbname);
+                } // if
+                break;
+            } // if
+        } // foreach
+
+        // identify felds which join the INNER table to the LINK table
+        foreach ($reldata['fields'] as $fldchild => $fldparent) {
+            if (empty($inner_alias)) {
+                $inner_key[]    = $inner_table .'.' .$fldparent;
+            } else {
+                $inner_key[]    = $inner_alias .'.' .$fldparent;
+            } // if
+            $ix = count($inner_key) -1;
+            if ($fldchild == $fldparent) {
+                $inner_key_as[] = $inner_key[$ix];
+            } else {
+                $inner_key_as[] = $inner_key[$ix] .' AS ' .$fldchild;
+            } // if
+            $inner_link[]   = $inner_key[$ix] .'=' .$this->tablename .'.' .$fldchild;
+        } // foreach
+
+        $this->link_item = $this->tablename .'.' .$fldchild;
+
+        // assemble the sql SELECT clause
+        if (strlen($this->sql_select) > 0) {
+            $sql_select = $this->sql_select .', ';
+        } else {
+            $sql_select = '';
+        } // if
+        foreach ($outer_key_as as $field) {
+            $sql_select .= $field .', ';
+        } // foreach
+        foreach ($inner_key_as as $field) {
+            $sql_select .= $field .', ';
+        } // foreach
+        $sql_select = rtrim($sql_select, ', ');  // remove trailing comma
+
+        // include field from parent entity, if defined
+        if (isset($reldata['parent_field'])) {
+            if (substr_count($reldata['parent_field'], '(') > 0) {
+                // field contains 'function(...)', so do not qualify it with table name
+                $sql_select .= ', ' .$reldata['parent_field'];
+            } else {
+                // fieldname to be qualified with either table or alias name
+                if (isset($reldata['alias'])) {
+                    $sql_select .= ', ' .$reldata['alias'] .'.' .$reldata['parent_field'];
+                } else {
+                    $sql_select .= ', ' .$reldata['parent'] .'.' .$reldata['parent_field'];
+                } // if
+            } // if
+        } // if
+
+        $sql_select .= ", CASE WHEN $this->link_item IS NULL THEN 'F' ELSE 'T' END AS selected";
+
+        // assemble the sql FROM clause
+        $sql_from   = $outer_dbname.$outer_table .' CROSS JOIN ';
+        if (empty($inner_alias)) {
+            $sql_from .= $inner_dbname.$inner_table;
+        } else {
+            $sql_from .= $inner_dbname.$inner_table .' AS ' .$inner_alias;
+        } // if
+
+        // find out if the inner table contains the 'account_id' column
+        $dbinner = RDCsingleton::getInstance($inner_table, null, false);
+        if (isset($dbinner->fieldspec['rdcaccount_id'])) {
+            if (empty($inner_alias)) {
+                $account_id_string = $inner_table;
+            } else {
+                $account_id_string = $inner_alias;
+            } // if
+
+            $sql_select .= ", {$account_id_string}.rdcaccount_id";  // retrieve value from inner table
+
+            $account_id = $_SESSION['rdcaccount_id'];
+            if (empty($account_id) OR $account_id == 1) {
+                $account_id_string .= ".rdcaccount_id='1'";
+            } else {
+                $account_id_string .= ".rdcaccount_id IN ('1', '$account_id')";
+            } // if
+            // append this to current $where string as an additional filter on the INNER entity
+            if (empty($this->sql_where)) {
+                $this->sql_where  = "$account_id_string";
+            } else {
+                $this->sql_where .= " AND $account_id_string";
+            } // if
+        } // if
+        unset($dbinner);
+
+        $sql_from  .= ' LEFT JOIN ' .$this->tablename .' ON (';
+        foreach ($outer_link as $link) {
+            $sql_from .= $link .' AND ';
+        } // foreach
+        foreach ($inner_link as $link) {
+            $sql_from .= $link .' AND ';
+        } // foreach
+        // remove last 5 characters (' AND ')
+        $sql_from = substr($sql_from, 0, strlen($sql_from) - 5);
+        $sql_from .= ') ';
+
+        if (!empty($reldata['alt_language_table'])) {
+            if (!isset($GLOBALS['party_language'])) {
+                $GLOBALS['party_language'] = $_SESSION['default_language'];
+            } // if
+            $party_language = str_replace('_', '-', strtolower($GLOBALS['party_language']));
+            if ($party_language != $_SESSION['default_language']) {
+                // link to table which provides text in an alternative language
+                $pkey_array = $reldata['fields'];
+                $new_relation = array('parent' => $reldata['alt_language_table'],
+                                      'parent_field' => $reldata['alt_language_cols'],
+                                      'fields' => $pkey_array);
+                $new_relation['this'] = $inner_table;
+                $sql_select = $this->_sqlSelectAlternateLanguage($sql_select, $new_relation);
+            } // if
+        } // if
+
+        $this->sql_select = $sql_select;
+        $this->sql_from   = $sql_from .' ' .$this->sql_from;
+
+        return $where;
+
+    } // _sqlAssembleWhereLink
+
+    // ****************************************************************************
+    function _sqlForeignJoin (&$select, $from, $parent_relations)
+    // if there are parent relations then construct a JOIN.
+    // Note that $select is passed by reference as it may be amended.
+    {
+        if (empty($parent_relations) AND empty($this->alt_language_table)) {
+            if (empty($select)) {
+                $select = $this->tablename .'.*';
+            } // if
+            if (empty($from)) {
+                $from = $this->tablename;
+            } // if
+            return $from;
+        } // if
+
+        if (empty($select)) {
+            if (empty($this->alt_language_table)) {
+                $select = $this->tablename .'.*';
+            } else {
+                // insert 'table.field' into SELECT for every field in this table
+                foreach ($this->fieldspec as $fieldname => $fieldspec) {
+                    if (array_key_exists('nondb', $fieldspec)) {
+                        // this is a non-database field, so ignore it
+                    } else {
+                        if (empty($select)) {
+                            $select = $this->tablename .'.' .$fieldname;
+                        } else {
+                            $select .= ', ' .$this->tablename .'.' .$fieldname;
+                        } // if
+                    } // if
+                } // foreach
+            } // if
+        } else {
+            $select = qualifySelect($select, $this->tablename, $this->fieldspec);
+        } // if
+
+        if (empty($from)) {
+            $from = $this->tablename;
+        } // if
+
+        $alt_language_relations = array();
+        if (!empty($this->alt_language_table)) {
+            if (!isset($GLOBALS['party_language'])) {
+                $GLOBALS['party_language'] = $_SESSION['default_language'];
+            } // if
+            $party_language = str_replace('_', '-', strtolower($GLOBALS['party_language']));
+            if ($party_language != $_SESSION['default_language']) {
+                // add in a new relation for the alternative language table
+                $pkey_array = array();
+                foreach ($this->primary_key as $fieldname) {
+                    $pkey_array[$fieldname] = $fieldname;
+                } // foreach
+                $temp_relation = array('parent' => $this->alt_language_table,
+                                       'parent_field' => $this->alt_language_cols,
+                                       'fields' => $pkey_array);
+                $temp_relation['this'] = $this->tablename;
+                $alt_language_relations[] = $temp_relation;
+            } // if
+        } // if
+
+        foreach ($parent_relations as $reldata) {
+            if (!isset($reldata['parent_field'])) {
+                // parent_field is not defined, so ignore this entry
+            } else {
+                $reldata['this'] = $this->tablename;
+                $from = $this->_sqlProcessJoin ($select, $from, $reldata, $alt_language_relations);
+            } // if
+        } // foreach
+
+        foreach ($alt_language_relations as $reldata) {
+            $select = $this->_sqlSelectAlternateLanguage($select, $reldata);
+        } // foreach
+
+        return $from;
+
+    } // _sqlForeignJoin
+
+    // ****************************************************************************
+    function _sqlProcessJoin (&$select, $from, $reldata, &$new_relations)
+    // construct a JOIN using relationship details in $reldata.
+    // Note that $select is passed by reference as it may be amended.
+    // Note that $new_relations is passed by reference as it may be amended.
+    {
+        $parent_table = $reldata['parent'];
+        $parent_field = $reldata['parent_field'];
+
+        // does this belong to another database/schema?
+        if (isset($reldata['dbname'])) {
+            if (is_True($this->sql_no_foreign_db)) {
+                // do NOT join to tables in different database
+                return $from;
+            } // if
+        } // if
+
+        // does this table have an alias?
+        if (isset($reldata['alias'])) {
+            $parent_alias = $reldata['alias'];
+        } else {
+            $parent_alias = '';
+        } // if
+
+        // obtain $fieldspec array for relevant table ($this or another)
+        if ($parent_table != $reldata['this']) {
+            // instantiate an object for this table
+            if (array_key_exists('subsys_dir', $reldata)) {
+                $parentObj = RDCsingleton::getInstance($reldata['subsys_dir'].'/'.$parent_table);
+            } else {
+                $parentObj = RDCsingleton::getInstance($parent_table);
+            } // if
+            if (isset($reldata['dbname'])) {
+                // find out if this database name has been altered in the config file
+                $dbname = findDBName($parentObj->dbname, $this->dbname);
+            } else {
+                $dbname = '';
+            } // if
+            $fieldspec   = $parentObj->fieldspec;
+            $primary_key = $parentObj->primary_key;
+            if (empty($reldata['alt_language_cols']) AND !empty($parentObj->alt_language_cols)) {
+                $reldata['alt_language_table'] = $parentObj->alt_language_table;
+                $reldata['alt_language_cols']  = $parentObj->alt_language_cols;
+            } // if
+            unset($parentObj);
+        } else {
+            $dbname      = '';
+            $fieldspec   = $this->fieldspec;
+            $primary_key = $this->primary_key;
+        } // if
+
+        if (!empty($reldata['alt_language_cols'])) {
+            // find out if any column names have an alias
+            $parent_array = extractFieldNamesAssoc($parent_field);
+            $alt_array    = extractFieldNamesAssoc($reldata['alt_language_cols']);
+            $alt_cols     = '';
+            foreach ($parent_array as $field_alias => $fieldname) {
+                if (array_key_exists($fieldname, $alt_array)) {
+                    if ($field_alias != $fieldname) {
+                        $string = $fieldname .' AS ' .$field_alias;
+                    } else {
+                        $string = $fieldname;
+                    } // if
+                    if (empty($alt_cols)) {
+                        $alt_cols = $string;
+                    } else {
+                        $alt_cols .= ', ' .$string;
+                    } // if
+                } // if
+            } // foreach
+            $reldata['alt_language_cols'] = $alt_cols;
+        } // if
+
+        // get list of alias names used in current SELECT list
+        $select_aliases = extractAliasNames($select);
+        if (!empty($select_aliases)) {
+            // find out if any new field has an alias name
+            $parent_field_array = extractSelectList($parent_field);
+            foreach ($parent_field_array as $key => $field) {
+                list($fld_orig, $fld_alias) = getFieldAlias3($field);
+                if ($fld_orig != $fld_alias) {
+                    while (array_key_exists($fld_alias, $select_aliases)) {
+                        // this alias name is already used, so append an 'x' to make it unique
+                        $fld_alias .= 'x';
+                    } // while
+                    $field = $fld_orig .' AS ' .$fld_alias;
+                    $parent_field_array[$key] = $field;
+                } // if
+            } // foreach
+            $parent_field = implode(', ', $parent_field_array);
+        } // if
+
+        // put parent field(s) from foreign table into SELECT area
+        if (!empty($parent_alias)) {
+            $parent_field = qualifySelect($parent_field, $parent_alias, $fieldspec);
+        } else {
+            $parent_field = qualifySelect($parent_field, $parent_table, $fieldspec);
+        } // if
+        $select .= ', ' .$parent_field;
+
+        // build JOIN using supplied field names
+        if (!empty($parent_alias)) {
+            $from .= ' LEFT JOIN ' .$dbname .$reldata['parent']  .' AS ' .$parent_alias .' ON (';
+        } else {
+            $from .= ' LEFT JOIN ' .$dbname .$reldata['parent']  .' ON (';
+        } // if
+        foreach ($reldata['fields'] as $fldchild => $fldparent) {
+            //if (strlen($fldchild) < 1) {
+            //    // 'Name of child field missing in relationship with $parent_table'
+            //    trigger_error($this->getLanguageText('sys0110', strtoupper($parent_table)), E_USER_ERROR);
+            //} // if
+            if (strlen($fldparent) < 1) {
+                // 'Name of parent field missing in relationship with $parent_table'
+                trigger_error($this->getLanguageText('sys0112', strtoupper($parent_table)), E_USER_ERROR);
+            } // if
+            if (!empty($fldchild)) {
+                if (!empty($parent_alias)) {
+                    $from .= $parent_alias .'.' .$fldparent .'=' .$reldata['this'] .'.' .$fldchild .' AND ';
+                } else {
+                    $from .= $parent_table .'.' .$fldparent .'=' .$reldata['this'] .'.' .$fldchild .' AND ';
+                } // if
+            } // if
+        } // foreach
+        // remove last 5 characters (' AND ')
+        $from = substr($from, 0, strlen($from) - 5);
+        $from .= ')';
+
+        if (!empty($reldata['alt_language_table'])) {
+            if (!isset($GLOBALS['party_language'])) {
+                $GLOBALS['party_language'] = $_SESSION['default_language'];
+            } // if
+            $party_language = str_replace('_', '-', strtolower($GLOBALS['party_language']));
+            if ($party_language != $_SESSION['default_language']) {
+                // add in a new relation for the alternative language table
+                $pkey_array = array();
+                foreach ($primary_key as $fieldname) {
+                    $pkey_array[$fieldname] = $fieldname;
+                } // foreach
+                $temp_relation = array('parent' => $reldata['alt_language_table'],
+                                       'parent_field' => $reldata['alt_language_cols'],
+                                       'fields' => $pkey_array);
+                if (isset($reldata['alias'])) {
+                    $temp_relation['this'] = $reldata['alias'];
+                } else {
+                    $temp_relation['this'] = $reldata['parent'];
+                } // if
+                if (isset($reldata['dbname'])) {
+                    $temp_relation['dbname'] = $reldata['dbname'];
+                } // if
+                $new_relations[] = $temp_relation;
+            } // if
+        } // if
+
+        return $from;
+
+    } // _sqlProcessJoin
+
+    // ****************************************************************************
+    function _sqlSelectAlternateLanguage ($sql_select, $reldata, $subquery=false)
+    // insert SELECT clause to obtain text from an alternative language table,
+    // (or the orginal text if alternative text is not found).
+    // if $subquery=true it means $fldchild was obtained from a subquery and need
+    // not be qualified with a table name.
+    {
+        if (!isset($GLOBALS['party_language'])) {
+            $GLOBALS['party_language'] = $_SESSION['default_language'];
+        } // if
+
+        // convert underscore to hyphen for database lookup
+        $party_language = str_replace('_', '-', strtolower($GLOBALS['party_language']));
+
+        list($this_table_orig, $this_table_alias) = getTableAlias3($reldata['this']);
+        if (empty($this_table_alias)) {
+            $this_table_orig = $reldata['this'];
+            $this_table_alias = $this_table_orig;
+        } // if
+
+        // extract all elements within current SELECT clause into an associative array
+        $select_array = extractSelectList($sql_select);
+
+        // look for names which have an alias
+        $select_alias = extractFieldNamesAssoc($select_array);
+
+        // create an array of field names (and possible alias names) which are to be added
+        $field_array = extractFieldNamesAssoc($reldata['parent_field']);
+
+        // each field requires a separate sub-select
+        foreach ($field_array as $field_alias => $field_name) {
+            if ($field_alias == $field_name) {
+                // check for alias name in $sql_select
+                $test = array_search($field_name, $select_alias);
+                if (empty($test)) {
+                    // try using with a qualified name
+                    $test = array_search("$this_table_alias.$field_name", $select_alias);
+                    if ($test AND $test == $select_alias[$test]) {
+                        // this is not a different value, so it is not an alias
+                        $test = null;
+                    } // if
+                } // if
+                if (!empty($test)) {
+                    $field_alias = $test;
+                } // if
+            } // if
+
+            // remove any previous element which uses this name
+            if ($this_table_orig == $this_table_alias) {
+                $select_array = removeDuplicateNameFromSelect($select_array, $field_alias);
+            } elseif ($field_name != $field_alias) {
+                $select_array = removeDuplicateNameFromSelect($select_array, $field_alias);
+            } else {
+                $select_array = removeDuplicateNameFromSelect($select_array, "$this_table_alias.$field_alias");
+            } // if
+
+            // build new element for SELECT clause
+            $string  = "\nCOALESCE((SELECT $field_name FROM ";
+            if (isset($reldata['dbname'])) {
+                $dbname = findDBName($reldata['dbname']);
+            } else {
+                $dbname = '';
+            } // if
+            $string .= $dbname.$reldata['parent']." WHERE ";
+            foreach ($reldata['fields'] as $fldchild => $fldparent) {
+                if ($subquery == true) {
+                    // field obtained from a subquery, so do not qualify it
+                    $string .= "{$reldata['parent']}.$fldparent=$fldchild AND ";
+                } elseif (strpos($fldchild, '.') === false) {
+                    // qualify $fldchild with this tablename
+                    $string .= "{$reldata['parent']}.$fldparent=$this_table_alias.$fldchild AND ";
+                } else {
+                    // $fldchild is already qualified, so use it 'as is'
+                    $string .= "{$reldata['parent']}.$fldparent=$fldchild AND ";
+                } // if
+            } // foreach
+            $string .= "{$reldata['parent']}.language_id='$party_language'";
+            if ($subquery == true) {
+                $string .= "), (SELECT $field_name FROM ";
+                if (isset($reldata['dbname'])) {
+                    // find out if this database name has been altered in the config file
+                    $dbname = findDBName($reldata['dbname'], $this->dbname);
+                } else {
+                    $dbname = '';
+                } // if
+                $string .= $dbname."$this_table_orig WHERE ";
+                foreach ($reldata['fields'] as $fldchild => $fldparent) {
+                    $string .= "$this_table_orig.$fldparent=$fldchild AND ";
+                } // foreach
+                // remove final ' AND '
+                $string = substr($string, 0, -5);
+                $string .= ")";
+            } else {
+                $string .= "), $this_table_alias.$field_name";
+            } // if
+            $string .= ") AS $field_alias";
+
+            // append to current SELECT clause
+            $select_array[] = $string;
+        } // foreach
+
+        // convert array back into a string
+        $sql_select = implode(', ', $select_array);
+
+        return $sql_select;
+
+    } // _sqlSelectAlternateLanguage
+
+    // ****************************************************************************
+    function _switch_database ($tablename, $dbname)
+    // create an instance of a table class and switch the database name.
+    // $dbname will be different from the one inside the table class.
+    {
+        if (!class_exists($tablename)) {
+            require_once("$tablename.class.inc");
+        } // if
+
+        //$dbobject = new $tablename;
+        $dbobject = RDCsingleton::getInstance($tablename);
+
+        $dbname_old = $dbobject->dbname;
+
+        // use this function just in case the name has been switched in the config file.
+        list($dbobject->dbname, $dbprefix, $dbms_engine) = findDBConfig($dbname);
+
+        // save the original dbname in case we have to delete child relations
+        $dbobject->dbname_old = $dbname_old;
+
+        return $dbobject;
+
+    } // _switch_database
+
+    // ****************************************************************************
+    function _validateInsertPrimary ($fieldarray)
+    // validate contents of $fieldarray prior to an INSERT
+    {
+        $validationobj = RDCsingleton::getInstance('validation_class');
+
+        $array = $validationobj->validateInsert($fieldarray, $this->fieldspec, $this);
+
+        $this->errors = $validationobj->getErrors();
+
+        return $array;
+
+    } // _validateInsertPrimary
+
+    // ****************************************************************************
+    function _validateUpdatePrimary ($fieldarray)
+    // validate contents of $fieldarray prior to an UPDATE
+    {
+        $validationobj = RDCsingleton::getInstance('validation_class');
+
+        $array = $validationobj->validateUpdate($fieldarray, $this->fieldspec, $this);
+
+        $this->errors = $validationobj->getErrors();
+
+        return $array;
+
+    } // _validateUpdatePrimary
+
+    // ****************************************************************************
+    function __call ($method, $arguments)
+    // magic method to satisfy method names which are not defined in a standard object,
+    // but which may be defined in a custom object.
+    {
+        if (is_object($this->custom_processing_object)) {
+            if (method_exists($this->custom_processing_object, $method)) {
+                $result = $this->custom_processing_object->$method($arguments[0]);
+            } else {
+                trigger_error("Method '$method' does not exist in custom object", E_USER_ERROR);
+            } // if
+        } else {
+            trigger_error("Method '$method' does not exist in standard object", E_USER_ERROR);
+        } // if
+
+        return $result;
+
+    } // __call
+
+    // ****************************************************************************
+    function __sleep ()
+    // perform object clean-up before serialization
+    {
+        // this causes an endless loop
+//        if (is_object(($this->custom_processing_object))) {
+//            $this->custom_processing_object_serial = serialize($this->custom_processing_object);
+//            unset($this->custom_processing_object);
+//        } // if
+
+        if (method_exists($this, 'getClassName')) {
+            if (preg_match('/^cp_/i', $this->getClassName())) {
+                if (isset($this->is_custom_object) AND is_True($this->is_custom_object)) {
+                    return array();  // this is a custom object, so does not need to be serialized
+                } // if
+            } // if
+        } // if
+
+        $object_vars = get_object_vars($this);  // get associative array of class variables
+        $keys = array_keys($object_vars);       // return the variable names, not the values
+
+        // remove/clear unwanted variables
+        unset($keys['errors']);
+        unset($keys['messages']);
+        unset($keys['custom_processing_object']);  // this will be rebuilt in the __wakeup() method
+
+        $pattern_id = getPatternId();
+        if (preg_match('/^(LIST1)$/i', $pattern_id)
+        OR (preg_match('/^(LIST2|LIST3)$/i', $pattern_id) AND preg_match('/inner/i', $this->zone))) {
+            // this zone contains multiple rows, so shrink $fieldarray to primary key fields only
+            $pkey_array = $this->getPkeyNamesAdjusted();
+
+            if (is_string(key($this->fieldarray))) {
+                $this->fieldarray = array($this->fieldarray);
+                $array_is_associative = true;
+            } // if
+            foreach ($this->fieldarray as $rownum => &$rowdata) {
+                // remove all non-key fields from the stored data
+                $smalldata = array();
+                foreach ($pkey_array as $fieldname) {
+                    if (array_key_exists($fieldname, $rowdata)) {
+                       $smalldata[$fieldname] = $rowdata[$fieldname];
+                    } // if
+                } // foreach
+                $rowdata = $smalldata;
+            } // foreach
+            if (isset($array_is_associative)) {
+                $this->fieldarray = $this->fieldarray[0];
+            } // if
+        } // if
+
+        return $keys;
+
+    } // __sleep
+
+    // ****************************************************************************
+    function __wakeup ()
+    // perform object initialisation after unserialization
+    {
+        // rebuild data for any custom processing object
+        $this->_getCustomProcessingObject();
+
+    } // __wakeup
+
+// ****************************************************************************
+} // end class
+// ****************************************************************************
+
+?>
